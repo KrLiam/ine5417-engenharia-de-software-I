@@ -1,4 +1,6 @@
+from functools import cache
 import tkinter as tk
+from PIL import Image, ImageTk
 
 class Constants:
     TITLE = "Conjunto" # Title for the window
@@ -39,7 +41,7 @@ class Constants:
     BOARD_TILE_OUTLINE = 5
     BOARD_TILE_SIZE = 170
 
-    RING_CONTAINER = "assets/ring_container.png"
+    RING_CONTAINER_PATH = "assets/ring_container.png"
     RING_CONTAINER_SIZE = (300, 700)
 
     RED_RING_PATH = "assets/red_ring.png"
@@ -52,3 +54,31 @@ class Constants:
     CONTAINER_COMPLETE_WITHOUT_RINGS_ADVERSARY_PATH = "assets/container_complete_without_rings_adversary.png"
     SUA_VEZ_PATH = "assets/sua_vez.png"
     VEZ_DO_ADVERSARIO_PATH = "assets/vez_do_adversario.png"
+
+    HOVER_COLOR = (255, 196, 64)
+
+    @classmethod
+    @property
+    @cache
+    def assets(cls):
+        return {
+            "board": tk.PhotoImage(file=cls.BOARD_PATH),
+            "selected_tile_overlay": ImageTk.PhotoImage(
+                Image.new(
+                    mode="RGBA",
+                    size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
+                    color=(*cls.HOVER_COLOR, 128)
+                )
+            ),
+            "unselected_tile_overlay": ImageTk.PhotoImage(
+                Image.new(
+                    mode="RGBA",
+                    size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
+                    color=(*cls.HOVER_COLOR, 0)
+                )
+            ),
+            "ring_container": tk.PhotoImage(file=cls.RING_CONTAINER_PATH),
+            "blue_ring": tk.PhotoImage(file=cls.BLUE_RING_PATH),
+            "red_ring": tk.PhotoImage(file=cls.RED_RING_PATH),
+            "green_ring": tk.PhotoImage(file=cls.GREEN_RING_PATH),
+        }
