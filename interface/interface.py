@@ -69,6 +69,10 @@ class GamePlayerInterface:
     selected_ring: RingType | None
     status_message: str
 
+    red_amount: int
+    green_amount: int
+    blue_amount: int
+
     def __init__(self):
         width, height = c.DEFAULT_SIZE
 
@@ -81,8 +85,16 @@ class GamePlayerInterface:
         self.canvas = tk.Canvas(self.window, width=width, height=height, background=c.BACKGROUND_COLOR)
         self.canvas.pack()
 
+        self.restore_initial_state()
+    
+    def restore_initial_state(self):
         self.mounted = None
+
         self.selected_ring = None
+        self.red_amount = 16
+        self.green_amount = 16
+        self.blue_amount = 16
+
         self.status_message = ""
 
     def loop(self):
@@ -124,11 +136,36 @@ class GamePlayerInterface:
         red_ring = self.canvas.create_image(
             ring_container_cx, cy - 175, image=c.assets["red_ring"]
         )
+        self.canvas.create_text(
+            ring_container_cx + 85,
+            cy - 110,
+            justify="center",
+            fill="black",
+            font="LuckiestGuy 20 bold",
+            text=self.red_amount
+        )
+
         blue_ring = self.canvas.create_image(
-            ring_container_cx, cy- 10, image=c.assets["blue_ring"]
+            ring_container_cx, cy - 10, image=c.assets["blue_ring"]
+        )
+        self.canvas.create_text(
+            ring_container_cx + 85,
+            cy + 50,
+            justify="center",
+            fill="black",
+            font="LuckiestGuy 20 bold",
+            text=self.blue_amount
         )
         green_ring = self.canvas.create_image(
             ring_container_cx, cy + 150, image=c.assets["green_ring"]
+        )
+        self.canvas.create_text(
+            ring_container_cx + 85,
+            cy + 210,
+            justify="center",
+            fill="black",
+            font="LuckiestGuy 20 bold",
+            text=self.green_amount
         )
 
         self.canvas.tag_bind(red_ring, "<Button-1>", lambda _: self.click_ring(RingType.RED))
