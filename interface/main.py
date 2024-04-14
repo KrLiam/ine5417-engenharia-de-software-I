@@ -1,4 +1,4 @@
-from actor import PlayerActor
+from interface import GamePlayerInterface
 
-actor = PlayerActor()
+actor = GamePlayerInterface()
 actor.loop()

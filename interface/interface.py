@@ -61,7 +61,7 @@ class Tile:
             self.on_click(self)
 
 
-class PlayerActor:
+class GamePlayerInterface:
     window: tk.Tk
     canvas: tk.Canvas
 
