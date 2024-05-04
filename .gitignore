@@ -1,3 +1,5 @@
 __pycache__
-diagramas/*/*.bak_*
-diagramas/*/*.lck
+diagramas/**/*.bak_*
+diagramas/**/*.vbak
+diagramas/**/*.lck
+venv
