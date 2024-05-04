@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import tkinter as tk
-from typing import Any, Callable
+from typing import Any, Callable, ClassVar
 from constants import Constants as c
 
 
@@ -59,6 +59,54 @@ class Tile:
     def click(self, event: tk.Event):
         if self.on_click:
             self.on_click(self)
+
+@dataclass
+class RingStack:
+    canvas: tk.Canvas
+    pos: tuple[int, int]
+    ring_type: RingType
+    amount: int = 16
+    on_click: Callable[["RingStack"], None] | None = None
+
+    ring_id: int = field(init=False)
+    text_id: int = field(init=False)
+
+    asset_names: ClassVar[dict[RingType, str]] = {
+        RingType.RED: "red_ring",
+        RingType.BLUE: "blue_ring",
+        RingType.GREEN: "green_ring",
+    }
+
+    def __post_init__(self):
+        self.mount()
+    
+    def mount(self):
+        x,y = self.pos
+
+        asset_name = self.asset_names[self.ring_type]
+        asset = c.assets[asset_name]
+
+        self.ring_id = self.canvas.create_image(
+            x, y, image=asset
+        )
+        self.text_id = self.canvas.create_text(
+            x + 85,
+            y + 65,
+            justify="center",
+            fill="black",
+            font="LuckiestGuy 20 bold",
+            text=self.amount
+        )
+
+        self.canvas.tag_bind(self.ring_id, "<Button-1>", self.click)
+    
+    def click(self, event: tk.Event):
+        if self.on_click:
+            self.on_click(self)
+    
+    def set_amount(self, amount: int):
+        self.amount = amount
+        self.canvas.itemconfig(self.text_id, text=self.amount)
 
 
 class GamePlayerInterface:
@@ -133,44 +181,24 @@ class GamePlayerInterface:
             ring_container_cx, cy, image=c.assets["ring_container"]
         )
         
-        red_ring = self.canvas.create_image(
-            ring_container_cx, cy - 175, image=c.assets["red_ring"]
+        red_stack = RingStack(
+            canvas=self.canvas,
+            pos=(ring_container_cx, cy - 175),
+            ring_type=RingType.RED,
+            on_click=self.click_ring_stack,
         )
-        self.canvas.create_text(
-            ring_container_cx + 85,
-            cy - 110,
-            justify="center",
-            fill="black",
-            font="LuckiestGuy 20 bold",
-            text=self.red_amount
+        blue_stack = RingStack(
+            canvas=self.canvas,
+            pos=(ring_container_cx, cy - 14),
+            ring_type=RingType.BLUE,
+            on_click=self.click_ring_stack,
         )
-
-        blue_ring = self.canvas.create_image(
-            ring_container_cx, cy - 10, image=c.assets["blue_ring"]
+        green_stack = RingStack(
+            canvas=self.canvas,
+            pos=(ring_container_cx, cy + 147),
+            ring_type=RingType.GREEN,
+            on_click=self.click_ring_stack,
         )
-        self.canvas.create_text(
-            ring_container_cx + 85,
-            cy + 50,
-            justify="center",
-            fill="black",
-            font="LuckiestGuy 20 bold",
-            text=self.blue_amount
-        )
-        green_ring = self.canvas.create_image(
-            ring_container_cx, cy + 150, image=c.assets["green_ring"]
-        )
-        self.canvas.create_text(
-            ring_container_cx + 85,
-            cy + 210,
-            justify="center",
-            fill="black",
-            font="LuckiestGuy 20 bold",
-            text=self.green_amount
-        )
-
-        self.canvas.tag_bind(red_ring, "<Button-1>", lambda _: self.click_ring(RingType.RED))
-        self.canvas.tag_bind(green_ring, "<Button-1>", lambda _: self.click_ring(RingType.GREEN))
-        self.canvas.tag_bind(blue_ring, "<Button-1>", lambda _: self.click_ring(RingType.BLUE))
 
         status_text = self.canvas.create_text(
             ring_container_cx,
@@ -187,24 +215,22 @@ class GamePlayerInterface:
         self.mounted = {
             "board_id": board,
             "ring_container_id": ring_container,
-            "red_ring_id": red_ring,
-            "green_ring_id": green_ring,
-            "blue_ring_id": blue_ring,
             "status_text_id": status_text,
             "tiles": tiles,
+            "stacks": (red_stack, blue_stack, green_stack)
         }
     
     def update_status_message(self, message: str):
         self.canvas.itemconfig(self.mounted["status_text_id"], text=message)
     
-    def click_ring(self, ring: RingType):
-        if self.selected_ring == ring:
+    def click_ring_stack(self, stack: RingStack):
+        if self.selected_ring == stack.ring_type:
             self.update_status_message(f"Unselected ring")
             self.selected_ring = None
             return
 
-        self.selected_ring = ring
-        ring_name = self.selected_ring.value if self.selected_ring else "None"
+        self.selected_ring = stack.ring_type
+        ring_name = self.selected_ring.value if self.selected_ring else "None"        
         self.update_status_message(f"Selected {ring_name} ring")
         
     

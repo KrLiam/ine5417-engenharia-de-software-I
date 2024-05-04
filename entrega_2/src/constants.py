@@ -40,7 +40,7 @@ class Constants:
     @classmethod
     @property
     @cache
-    def assets(cls):
+    def assets(cls) -> dict[str, tk.PhotoImage]:
         return {
             "board": tk.PhotoImage(file=cls.BOARD_PATH),
             "selected_tile_overlay": ImageTk.PhotoImage(
