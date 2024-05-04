@@ -58,6 +58,7 @@ class Constants:
                 )
             ),
             "ring_container": tk.PhotoImage(file=cls.RING_CONTAINER_PATH),
+            "container_empty_adversary": tk.PhotoImage(file=cls.CONTAINER_EMPTY_ADVERSARY_PATH),
             "blue_ring": tk.PhotoImage(file=cls.BLUE_RING_PATH),
             "red_ring": tk.PhotoImage(file=cls.RED_RING_PATH),
             "green_ring": tk.PhotoImage(file=cls.GREEN_RING_PATH),
