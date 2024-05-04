@@ -17,11 +17,10 @@ class RingType(Enum):
 
 
 class GameStatus(Enum):
-    PRE_INIT = auto()
     INIT = auto()
     FAIL_INIT = auto()
     START = auto()
-    WAIT_MATCH = auto()
+    STARTING = auto()
     MATCH = auto()
 
 
@@ -190,10 +189,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     selected_ring: RingType | None
     status_message: str
 
-    red_amount: int
-    green_amount: int
-    blue_amount: int
-
     def __init__(self):
         super().__init__()
 
@@ -241,9 +236,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         self.mounted = None
 
         self.selected_ring = None
-        self.red_amount = 16
-        self.green_amount = 16
-        self.blue_amount = 16
 
         self.status_message = ""
 
@@ -268,8 +260,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
                 self.mount_fail_init()
             elif self.next_status == GameStatus.START:
                 self.mount_start()
-            elif self.next_status == GameStatus.WAIT_MATCH:
-                self.mount_wait_match()
+            elif self.next_status == GameStatus.STARTING:
+                self.mount_starting_match()
             elif self.next_status == GameStatus.MATCH:
                 self.mount_board()
 
@@ -382,10 +374,10 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         }
     
     def clicked_start(self, _: Button):
-        self.next_status = GameStatus.WAIT_MATCH
+        self.next_status = GameStatus.STARTING
     
 
-    def mount_wait_match(self):
+    def mount_starting_match(self):
         w, h = self.window_size
 
         text_id = self.canvas.create_text(
