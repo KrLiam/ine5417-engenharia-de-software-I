@@ -27,13 +27,9 @@ NAMES: list[tuple[Gender, str]] = [
     (Gender.Male, "Dinossauro"),
 ]
 ADJECTIVES = [
-    ("Gordo", "Gorda"),
     ("Generoso", "Generosa"),
     ("Inteligente", "Inteligente"),
-    ("Desengonçado", "Desengonçada"),
     ("Veloz", "Veloz"),
     ("Ligeiro", "Ligeira"),
-    ("Magro", "Magra"),
-    ("Velho", "Velha"),
     ("Bebê", "Bebê"),
 ]
