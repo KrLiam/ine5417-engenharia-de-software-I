@@ -347,6 +347,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
     def restore_initial_state(self):
         self.next_status = GameStatus.INIT
+        self.match = None
         self.mounted = None
 
         self.selected_ring = None
@@ -728,6 +729,31 @@ class GamePlayerInterface(dog.DogPlayerInterface):
                 tile = self.get_tile((i, j))
                 tile.clear_overlay()
     
+    def mount_end_screen(self):
+        board = self.match.get_board()
+        end = board.check_end_condition()
+
+        local_turn = self.match.get_local_turn()
+
+        for cell in end:
+            pos = cell.get_pos()
+            tile = self.get_tile(pos)
+
+            if local_turn:
+                tile.victory_overlay()
+            else:
+                tile.defeat_overlay()
+        
+        w, h = self.window_size
+
+        button_y = h/2 + c.BOARD_SIZE/2 + 40
+        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", lambda _: self.return_to_start())
+        self.mounted["return_button"] = button_id
+    
+    def return_to_start(self):
+        print("returning")
+        self.restore_initial_state()
+
     def evaluate_game_end(self) -> bool:
         board = self.match.get_board()
         end = board.check_end_condition()
@@ -737,18 +763,11 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
             if local_turn:
                 self.update_status_message("Victory")
-
-                for cell in end:
-                    pos = cell.get_pos()
-                    tile = self.get_tile(pos)
-                    tile.victory_overlay()
             else:
                 self.update_status_message("Defeat")
+            
+            self.mount_end_screen()
 
-                for cell in end:
-                    pos = cell.get_pos()
-                    tile = self.get_tile(pos)
-                    tile.defeat_overlay()
         else:
             local_turn = self.match.switch_turn()
 
@@ -756,6 +775,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
                 self.update_status_message("Your Turn")
             else:
                 self.update_status_message("Their Turn")
+        
+        return end
 
     def highlight_possible_movements(self, board: Board, clicked_cell: Cell):
         for cell in board.get_cells():

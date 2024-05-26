@@ -4,7 +4,7 @@ from PIL import Image, ImageTk
 
 class Constants:
     TITLE = "Conjunto" # Title for the window
-    DEFAULT_SIZE = (1600, 900) # Default size for the window
+    DEFAULT_SIZE = (1600, 1000) # Default size for the window
     RESIZABLE = True  # Whether the window is resizable or not
     DELAY = 15 # Delay for the main loop
     BACKGROUND_COLOR = '#CDDFA0'
