@@ -40,7 +40,7 @@ class Tile:
         y = board_y + board_outline_size + i*(tile_size + tile_outline_size)
 
         self.rect_id = self.canvas.create_image(
-            x, y, image=c.assets["unselected_tile_overlay"], anchor="nw"
+            x, y, image=c.assets["transparent_tile_overlay"], anchor="nw"
         )
 
         self.canvas.tag_bind(self.rect_id, "<Enter>", self.enter)
@@ -51,10 +51,10 @@ class Tile:
         self.canvas.delete(self.rect_id)
     
     def enter(self, event: tk.Event):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["selected_tile_overlay"])
+        self.canvas.itemconfig(self.rect_id, image=c.assets["hover_tile_overlay"])
 
     def leave(self, event: tk.Event):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["unselected_tile_overlay"])
+        self.canvas.itemconfig(self.rect_id, image=c.assets["transparent_tile_overlay"])
 
     def click(self, event: tk.Event):
         if self.on_click:

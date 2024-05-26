@@ -43,14 +43,14 @@ class Constants:
     def assets(cls):
         return {
             "board": tk.PhotoImage(file=cls.BOARD_PATH),
-            "selected_tile_overlay": ImageTk.PhotoImage(
+            "hover_tile_overlay": ImageTk.PhotoImage(
                 Image.new(
                     mode="RGBA",
                     size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
                     color=(*cls.HOVER_COLOR, 128)
                 )
             ),
-            "unselected_tile_overlay": ImageTk.PhotoImage(
+            "transparent_tile_overlay": ImageTk.PhotoImage(
                 Image.new(
                     mode="RGBA",
                     size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),

@@ -36,6 +36,9 @@ class Constants:
     VEZ_DO_ADVERSARIO_PATH = "assets/vez_do_adversario.png"
 
     HOVER_COLOR = (255, 196, 64)
+    DEFEAT_COLOR = (235, 64, 52)
+    VICTORY_COLOR = (113, 235, 52)
+    HIGHLIGHT_COLOR = (156, 219, 255)
 
     @classmethod
     @property
@@ -43,14 +46,35 @@ class Constants:
     def assets(cls) -> dict[str, tk.PhotoImage]:
         return {
             "board": tk.PhotoImage(file=cls.BOARD_PATH),
-            "selected_tile_overlay": ImageTk.PhotoImage(
+            "hover_tile_overlay": ImageTk.PhotoImage(
                 Image.new(
                     mode="RGBA",
                     size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
                     color=(*cls.HOVER_COLOR, 128)
                 )
             ),
-            "unselected_tile_overlay": ImageTk.PhotoImage(
+            "victory_tile_overlay": ImageTk.PhotoImage(
+                Image.new(
+                    mode="RGBA",
+                    size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
+                    color=(*cls.VICTORY_COLOR, 128)
+                )
+            ),
+            "defeat_tile_overlay": ImageTk.PhotoImage(
+                Image.new(
+                    mode="RGBA",
+                    size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
+                    color=(*cls.DEFEAT_COLOR, 128)
+                )
+            ),
+            "highlight_tile_overlay": ImageTk.PhotoImage(
+                Image.new(
+                    mode="RGBA",
+                    size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
+                    color=(*cls.HIGHLIGHT_COLOR, 128)
+                )
+            ),
+            "transparent_tile_overlay": ImageTk.PhotoImage(
                 Image.new(
                     mode="RGBA",
                     size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),

@@ -17,8 +17,13 @@ class Player:
     green_amount: int = field(init=False, default=16)
     blue_amount: int = field(init=False, default=16)
 
-    def consume_ring(ring_type: RingType):
-        ...
+    def consume_ring(self, ring_type: RingType):
+        if ring_type == RingType.RED:
+            self.red_amount = max(self.red_amount - 1, 0)
+        elif ring_type == RingType.GREEN:
+            self.green_amount = max(self.green_amount - 1, 0)
+        else:
+            self.blue_amount = max(self.blue_amount - 1, 0)
 
 
 class Board:
@@ -222,6 +227,9 @@ class GameMatch:
     
     def get_board(self) -> Board:
         return self.board
+    
+    def get_local_turn(self) -> bool:
+        return self.local_turn
 
     @classmethod
     def from_start_status(cls, status: StartStatus) -> "GameMatch":
@@ -234,7 +242,7 @@ class GameMatch:
         return GameMatch(local_turn, local_player, remote_player)
 
     def switch_turn(self) -> bool:
-        self.local_turn = not self.local_player
+        self.local_turn = not self.local_turn
         return self.local_turn
     
     @classmethod
