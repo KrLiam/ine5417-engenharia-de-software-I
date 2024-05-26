@@ -4,24 +4,83 @@ from random import choice
 from threading import Thread
 import tkinter as tk
 import requests
-from typing import Any, Callable, ClassVar
+from typing import Any, Callable, ClassVar, Literal
 from constants import Constants as c
 import dog
 from name import ADJECTIVES, NAMES
-
-
-class RingType(Enum):
-    RED = "red"
-    BLUE = "blue"
-    GREEN = "green"
-
-
+from game import Board, Cell, GameMatch, Player, RingType
 class GameStatus(Enum):
     INIT = auto()
     FAIL_INIT = auto()
     START = auto()
     STARTING = auto()
     MATCH = auto()
+class MoveType(Enum):
+    PLACE_RING = 0
+    MOVE_CELL_CONTENT = 1
+class Movement:
+    match_status: str | None
+    type: MoveType
+    ring_type: RingType | None
+    origin: tuple[int, int] | None
+    destination: tuple[int, int]
+
+    def __init__(
+        self,
+        type: MoveType,
+        destination: tuple[int, int],
+        origin: tuple[int, int] | None = None,
+        ring_type: RingType | None = None,
+        match_status: str | None = None
+    ):
+        self.type = type
+        self.ring_type = ring_type
+        self.origin = origin
+        self.destination = destination
+        self.match_status = match_status
+
+    def get_type(self) -> MoveType:
+        return self.move_type
+
+    def get_ring_type(self) -> RingType:
+        return self.ring_type
+
+    def get_origin(self) -> tuple[int, int]:
+        return self.origin
+
+    def get_destination(self) -> tuple[int, int]:
+        return self.destination
+    
+    def get_match_status(self) -> str:
+        return self.match_status
+    
+    def set_match_status(self, match_status: str):
+        self.match_status = match_status
+    
+    def to_dict(self):
+        return {
+            "match_status": self.match_status,
+            "type": self.type.value,
+            "destination": list(self.destination),
+            "origin": list(self.origin) if self.origin else None,
+            "ring_type": self.ring_type.value if self.ring_type else None,
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "Movement":
+        match_status = value.get("match_status")
+        type = value.get("type")
+        destination = value.get("destination")
+        origin = value.get("origin")
+        ring_type = value.get("ring_type")
+
+        return Movement(
+            type,
+            destination,
+            origin,
+            ring_type,
+            match_status
+        )
 
 
 @dataclass
@@ -72,6 +131,12 @@ class Tile:
     def click(self, event: tk.Event):
         if self.on_click:
             self.on_click(self)
+    
+    def selected(self):
+        ...
+    
+    def highlight(self):
+        ...
 
 
 @dataclass
@@ -182,11 +247,13 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
     mounted: dict[str, Any] | None
     status: GameStatus | None = None
+    match: GameMatch | None = None
     next_status: GameStatus | None = None
     start_status: dog.StartStatus | None
     dog_message: str
 
     selected_ring: RingType | None
+    selected_cell_pos: tuple[int, int] | None
     status_message: str
 
     def __init__(self):
@@ -236,6 +303,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         self.mounted = None
 
         self.selected_ring = None
+        self.selected_cell_pos = None
 
         self.status_message = ""
 
@@ -403,15 +471,18 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         if start.code == "2":
             self.next_status = GameStatus.MATCH
             self.start_status = start
+            self.match = GameMatch.from_start_status(start)
             return
 
         self.dog_message = start.get_message()
         self.next_status = GameStatus.START
 
 
+
     def receive_start(self, start_status: dog.StartStatus):
         self.next_status = GameStatus.MATCH
         self.start_status = start_status
+        self.match = GameMatch.from_start_status(start_status)
 
     
     def mount_board(self):
@@ -510,6 +581,9 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     def update_status_message(self, message: str):
         self.canvas.itemconfig(self.mounted["status_text_id"], text=message)
     
+    def get_tile(self, pos: tuple[int, int]) -> Tile:
+        return self.mounted["tiles"][pos]
+    
     def click_ring_stack(self, stack: RingStack):
         if self.selected_ring == stack.ring_type:
             self.update_status_message(f"Unselected ring")
@@ -521,10 +595,86 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         self.update_status_message(f"Selected {ring_name} ring")
         
     def click_tile(self, tile: Tile):
-        i, j = tile.pos
-        self.update_status_message(f"Clicked position {i}, {j}")
+        if self.selected_ring or self.selected_cell_pos:
+            return self.select_destination(tile.pos)
+        
+        return self.select_cell(tile.pos)
+    
+    def select_cell(self, clicked_pos: tuple[int, int]):
+        board =  self.match.get_board()
 
+        clicked_cell = board.get_cell(*clicked_pos)
 
-    def receive_move(self, a_move: dict[Any, Any]):
+        if clicked_cell.is_empty():
+            return
+
+        clicked_tile = self.get_tile(clicked_pos)
+
+        clicked_tile.selected()
+        self.selected_cell_pos = clicked_pos
+        self.update_status_message(f"selected cell {self.selected_cell_pos}")
+
+        self.highlight_possible_movements(board, clicked_cell)
+
+    def select_destination(self, clicked_pos: tuple[int, int]):
+        ring_type = self.selected_ring
+        selected_pos = self.selected_cell_pos
+
+        move = None
+
+        if ring_type:
+            local_player = self.match.local_player
+            move = self.place_ring(ring_type, clicked_pos, local_player)
+        elif selected_pos:
+            selected_cell = self.match.board.get_cell(*selected_pos)
+
+            if selected_pos != clicked_pos:
+                move = self.move_cell_content(selected_pos, clicked_pos)
+            else:
+                selected_cell.unselect()
+        
+        if move is not None:
+            end = self.evaluate_game_end()
+
+            if end:
+                move.set_match_status("finish")
+            else:
+                move.set_match_status("next")
+            
+            move_dict = move.to_dict()
+            print("sending move", move_dict)
+
+            self.dog_actor.send_move(move_dict)
+    
+    def evaluate_game_end(self) -> bool:
         ...
+    
+    def highlight_possible_movements(self, board: Board, clicked_cell: Cell):
+        for cell in board.get_cells():
+            if cell is clicked_cell:
+                continue
+
+            if not clicked_cell.can_move_to(cell):
+                continue
+
+            pos = cell.get_pos()
+            tile = self.get_tile(pos)
+
+            tile.highlight()
+    
+    def place_ring(self, ring_type: RingType, destination_pos: tuple[int, int], player: Player):
+
+        return Movement(
+            type=MoveType.PLACE_RING,
+            destination=destination_pos,
+            ring_type=ring_type
+        )
+    
+    def move_cell_content(self, origin_pos: tuple[int, int], destination_pos: tuple[int, int]):
+        ...
+
+    def receive_move(self, move_dict: dict[Any, Any]):
+        move = Movement.from_dict(move_dict)
+
+        print("received move", move_dict)
 
