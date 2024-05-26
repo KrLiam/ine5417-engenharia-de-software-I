@@ -90,6 +90,7 @@ class Tile:
     pos: tuple[int, int]
     canvas_pos: tuple[int, int] = field(init=False)
 
+    hover_rect_id: int | None = field(default=None, init=False)
     rect_id: int | None = field(default=None, init=False)
     red_id: int | None = field(default=None, init=False)
     green_id: int | None = field(default=None, init=False)
@@ -113,6 +114,9 @@ class Tile:
         y = board_y + board_outline_size + i*(tile_size + tile_outline_size)
         self.canvas_pos = (x, y)
 
+        self.hover_rect_id = self.canvas.create_image(
+            x, y, image=c.assets["transparent_tile_overlay"], anchor="nw"
+        )
         self.rect_id = self.canvas.create_image(
             x, y, image=c.assets["transparent_tile_overlay"], anchor="nw"
         )
@@ -127,10 +131,10 @@ class Tile:
         self.canvas.delete(self.rect_id)
     
     def enter(self, event: tk.Event):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["hover_tile_overlay"])
+        self.canvas.itemconfig(self.hover_rect_id, image=c.assets["hover_tile_overlay"])
 
     def leave(self, event: tk.Event):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["transparent_tile_overlay"])
+        self.canvas.itemconfig(self.hover_rect_id, image=c.assets["transparent_tile_overlay"])
 
     def click(self, event: tk.Event):
         if self.on_click:
@@ -168,7 +172,7 @@ class Tile:
             if self.blue_id:
                 self.canvas.delete(self.blue_id)
             self.blue_id = None
-        
+    
     def highlight_overlay(self):
         self.canvas.itemconfig(self.rect_id, image=c.assets["highlight_tile_overlay"])
 
@@ -728,7 +732,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         board = self.match.get_board()
         end = board.check_end_condition()
 
-        print("end", end)
         if end:
             local_turn = self.match.get_local_turn()
 
