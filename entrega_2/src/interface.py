@@ -456,6 +456,9 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
 
     def mount_start(self):
+        self.unmount()
+        self.status = GameStatus.START
+
         w, h = self.window_size
 
         welcome_text_id = self.canvas.create_text(
@@ -528,6 +531,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
 
     def receive_start(self, start_status: dog.StartStatus):
+        self.restore_initial_state()
+
         self.next_status = GameStatus.MATCH
         self.start_status = start_status
         self.match = GameMatch.from_start_status(start_status)
@@ -707,7 +712,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             end = self.evaluate_game_end()
 
             if end:
-                move.set_match_status("finish")
+                move.set_match_status("finished")
             else:
                 move.set_match_status("next")
             
@@ -751,8 +756,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         self.mounted["return_button"] = button_id
     
     def return_to_start(self):
-        print("returning")
-        self.restore_initial_state()
+        # self.restore_initial_state()
+        self.mount_start()
 
     def evaluate_game_end(self) -> bool:
         board = self.match.get_board()
