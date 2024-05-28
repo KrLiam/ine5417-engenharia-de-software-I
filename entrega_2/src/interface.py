@@ -379,18 +379,18 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             message = self.dog_actor.initialize(self.player_name, self)
         except requests.exceptions.ConnectionError:
             self.dog_message = "Falha de conexão"
-            self.mount_fail_init()
+            self.mount_error_screen()
             return
 
         self.dog_message = message
 
         if message == "Conectado a Dog Server":
-            self.mount_start()
+            self.mount_start_screen()
         else:
-            self.mount_fail_init()
+            self.mount_error_screen()
 
 
-    def mount_fail_init(self):
+    def mount_error_screen(self):
         self.canvas.delete("all")
         self.status = GameStatus.FAIL_INIT
 
@@ -418,7 +418,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             "retry_button": retry_button,
         }
     
-    def mount_start(self):
+    def mount_start_screen(self):
         self.canvas.delete("all")
         self.status = GameStatus.START
 
@@ -483,20 +483,20 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         if start.code == "2":
             self.match = GameMatch.from_start_status(start)
-            self.mount_board()
+            self.mount_match_screen()
             return
 
         self.dog_message = start.get_message()
-        self.mount_start()
+        self.mount_start_screen()
 
     def receive_start(self, start_status: dog.StartStatus):
         self.restore_initial_state()
 
         self.match = GameMatch.from_start_status(start_status)
-        self.mount_board()
+        self.mount_match_screen()
 
     
-    def mount_board(self):
+    def mount_match_screen(self):
         self.canvas.delete("all")
         self.status = GameStatus.MATCH
 
@@ -595,7 +595,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             "stacks": (red_stack, blue_stack, green_stack)
         }
 
-    def update_board_screen(self):
+    def update_match_screen(self):
         board = self.match.get_board()
 
         for cell in board.get_cells():
@@ -632,7 +632,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         w, h = self.window_size
 
         button_y = h/2 + c.BOARD_SIZE/2 + 40
-        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", lambda _: self.mount_start())
+        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", lambda _: self.mount_start_screen())
         self.mounted["return_button"] = button_id        
 
 
@@ -756,7 +756,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             thread.start()
             self.mounted["send_thread"] = thread
         
-        self.update_board_screen()
+        self.update_match_screen()
         
     def place_ring(self, ring_type: RingType, destination_pos: tuple[int, int], player: Player):
         board = self.match.get_board()
@@ -799,7 +799,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         
         self.evaluate_game_end()
         
-        self.update_board_screen()
+        self.update_match_screen()
 
     def receive_withdrawal_notification(self):
         self.mount_end_screen()
