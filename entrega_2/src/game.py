@@ -17,6 +17,9 @@ class Player:
     green_amount: int = field(init=False, default=16)
     blue_amount: int = field(init=False, default=16)
 
+    def get_name(self) -> str:
+        return self.name
+
     def consume_ring(self, ring_type: RingType):
         if ring_type == RingType.RED:
             self.red_amount = max(self.red_amount - 1, 0)
@@ -230,6 +233,12 @@ class GameMatch:
     
     def get_local_turn(self) -> bool:
         return self.local_turn
+    
+    def get_local_player(self) -> Player:
+        return self.local_player
+
+    def get_remote_player(self) -> Player:
+        return self.remote_player
 
     @classmethod
     def from_start_status(cls, status: StartStatus) -> "GameMatch":
@@ -248,4 +257,3 @@ class GameMatch:
     @classmethod
     def evaluate_turn(cls, players: list[str], local_id: str):
         ...
-

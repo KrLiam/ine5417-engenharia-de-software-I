@@ -295,8 +295,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     mounted: dict[str, Any] | None
     status: GameStatus | None = None
     match: GameMatch | None = None
-    next_status: GameStatus | None = None
-    start_status: dog.StartStatus | None
     dog_message: str
 
     selected_ring: RingType | None
@@ -317,26 +315,14 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         self.canvas = tk.Canvas(self.window, width=width, height=height, background=c.BACKGROUND_COLOR)
         self.canvas.pack()
 
-        self.start_status = None
         self.player_name = self.choose_player_name()
 
         self.restore_initial_state()
+        self.mount_init() # mover isso pro loop posteriormente
 
     @property
     def window_size(self) -> tuple[int, int]:
-        return (self.window.winfo_width(), self.window.winfo_height())
-
-    @property
-    def adversary_name(self) -> str | None:
-        if not self.start_status:
-            return None
-        
-        players = self.start_status.get_players()
-
-        for name, player_id, _ in players:
-            if player_id != self.start_status.local_id:
-                return name
-    
+        return (self.window.winfo_width(), self.window.winfo_height())    
 
     def choose_player_name(self):
         gender, animal = choice(NAMES)
@@ -344,9 +330,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         return f"{animal} {adj_pair[gender.value]}"
 
-
     def restore_initial_state(self):
-        self.next_status = GameStatus.INIT
         self.match = None
         self.mounted = None
 
@@ -355,41 +339,21 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         self.status_message = ""
 
+
     def loop(self):
-        def callback():
-            self.update()
-            self.window.after(c.DELAY, callback)
+        # a tela de init fica zoada se montada antes do tkinter executar o loop
+        # isso é problema pra "resolver" só depois :)
+        # def callback():
+        #     self.mount_init()
+        # self.window.after(c.DELAY, callback)
 
-        self.window.after(c.DELAY, callback)
         self.window.mainloop()
-
-    def unmount(self):
-        self.canvas.delete("all")
-
-    def update(self):
-        if self.next_status:
-            self.unmount()
-
-            if self.next_status == GameStatus.INIT:
-                self.mount_init()
-            elif self.next_status == GameStatus.FAIL_INIT:
-                self.mount_fail_init()
-            elif self.next_status == GameStatus.START:
-                self.mount_start()
-            elif self.next_status == GameStatus.STARTING:
-                self.mount_starting_match()
-            elif self.next_status == GameStatus.MATCH:
-                self.mount_board()
-
-            self.status = self.next_status
-            self.next_status = None
-
-
-    def receive_withdrawal_notification(self):
-        ...
 
 
     def mount_init(self):
+        self.canvas.delete("all")
+        self.status = GameStatus.INIT
+
         w, h = self.window_size
 
         text_id = self.canvas.create_text(
@@ -415,18 +379,21 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             message = self.dog_actor.initialize(self.player_name, self)
         except requests.exceptions.ConnectionError:
             self.dog_message = "Falha de conexão"
-            self.next_status = GameStatus.FAIL_INIT
+            self.mount_fail_init()
             return
 
         self.dog_message = message
 
         if message == "Conectado a Dog Server":
-            self.next_status = GameStatus.START
+            self.mount_start()
         else:
-            self.next_status = GameStatus.FAIL_INIT
+            self.mount_fail_init()
 
 
     def mount_fail_init(self):
+        self.canvas.delete("all")
+        self.status = GameStatus.FAIL_INIT
+
         w, h = self.window_size
 
         dog_text_id = self.canvas.create_text(
@@ -443,7 +410,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             center_pos=(w/2, h/2),
             size=(400, 75),
             message="Tentar Novamente",
-            on_click=self.clicked_retry_init
+            on_click=lambda _: self.mount_init()
         )
 
         self.mounted = {
@@ -451,12 +418,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             "retry_button": retry_button,
         }
     
-    def clicked_retry_init(self, _: Button):
-        self.next_status = GameStatus.INIT
-
-
     def mount_start(self):
-        self.unmount()
+        self.canvas.delete("all")
         self.status = GameStatus.START
 
         w, h = self.window_size
@@ -475,7 +438,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             center_pos=(w/2, h/2),
             size=(200, 75),
             message="Iniciar",
-            on_click=self.clicked_start
+            on_click=lambda _: self.mount_starting_match()
         )
         dog_text_id = self.canvas.create_text(
             w/2,
@@ -490,13 +453,12 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             "welcome_text_id": welcome_text_id,
             "dog_text_id": dog_text_id,
             "start_button": start_button,
-        }
-    
-    def clicked_start(self, _: Button):
-        self.next_status = GameStatus.STARTING
-    
+        }    
 
     def mount_starting_match(self):
+        self.canvas.delete("all")
+        self.status = GameStatus.STARTING
+
         w, h = self.window_size
 
         text_id = self.canvas.create_text(
@@ -520,25 +482,24 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         start = self.dog_actor.start_match(2)
 
         if start.code == "2":
-            self.next_status = GameStatus.MATCH
-            self.start_status = start
             self.match = GameMatch.from_start_status(start)
+            self.mount_board()
             return
 
         self.dog_message = start.get_message()
-        self.next_status = GameStatus.START
-
-
+        self.mount_start()
 
     def receive_start(self, start_status: dog.StartStatus):
         self.restore_initial_state()
 
-        self.next_status = GameStatus.MATCH
-        self.start_status = start_status
         self.match = GameMatch.from_start_status(start_status)
+        self.mount_board()
 
     
     def mount_board(self):
+        self.canvas.delete("all")
+        self.status = GameStatus.MATCH
+
         w, h = self.window_size
 
         cx, cy = w/2, h/2
@@ -599,12 +560,15 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             fill="black",
             font="LuckiestGuy 18 bold"
         )
+
+        remote_player = self.match.get_remote_player()
+        adversary_name = remote_player.get_name()
         adversary_name_text = self.canvas.create_text(
             adv_ring_container_cx,
             cy + ring_container_size_y/2 - 5,
             width=ring_container_size_y,
             justify="center",
-            text=self.adversary_name or "",
+            text=adversary_name or "",
             fill="black",
             font="LuckiestGuy 18 bold"
         )
@@ -640,13 +604,45 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
             ring_set = cell.get_ring_set()
             tile.update_ring_set(ring_set)
-    
+
+
+    def mount_end_screen(self):
+        board = self.match.get_board()
+        end = board.check_end_condition()
+
+        if end:
+            local_turn = self.match.get_local_turn()
+
+            if local_turn:
+                self.update_status_message("Victory")
+            else:
+                self.update_status_message("Defeat")
+
+            for cell in end:
+                pos = cell.get_pos()
+                tile = self.get_tile(pos)
+
+                if local_turn:
+                    tile.victory_overlay()
+                else:
+                    tile.defeat_overlay()
+        else:
+            self.update_status_message("Adversary Escaped")
+        
+        w, h = self.window_size
+
+        button_y = h/2 + c.BOARD_SIZE/2 + 40
+        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", lambda _: self.mount_start())
+        self.mounted["return_button"] = button_id        
+
+
     def update_status_message(self, message: str):
         self.canvas.itemconfig(self.mounted["status_text_id"], text=message)
     
     def get_tile(self, pos: tuple[int, int]) -> Tile:
         return self.mounted["tiles"][pos]
     
+
     def click_ring_stack(self, stack: RingStack):
         if not self.match.local_turn:
             self.update_status_message("Not Your Turn")
@@ -671,6 +667,42 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         
         return self.select_cell(tile.pos)
     
+    def clear_overlay(self):
+        for i in range(4):
+            for j in range(4):
+                tile = self.get_tile((i, j))
+                tile.clear_overlay()
+
+    def highlight_possible_movements(self, board: Board, clicked_cell: Cell):
+        for cell in board.get_cells():
+            if cell is clicked_cell:
+                continue
+
+            if not clicked_cell.can_move_to(cell):
+                continue
+
+            pos = cell.get_pos()
+            tile = self.get_tile(pos)
+
+            tile.highlight_overlay()
+
+    def evaluate_game_end(self) -> bool:
+        board = self.match.get_board()
+        end = board.check_end_condition()
+
+        if end:            
+            self.mount_end_screen()
+        else:
+            local_turn = self.match.switch_turn()
+
+            if local_turn:
+                self.update_status_message("Your Turn")
+            else:
+                self.update_status_message("Their Turn")
+        
+        return end
+
+
     def select_cell(self, clicked_pos: tuple[int, int]):
         board =  self.match.get_board()
 
@@ -687,6 +719,10 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         self.highlight_possible_movements(board, clicked_cell)
 
+    def unselect_cell(self):
+        self.selected_cell_pos = None
+        self.clear_overlay()
+
     def select_destination(self, clicked_pos: tuple[int, int]):
         ring_type = self.selected_ring
         selected_pos = self.selected_cell_pos
@@ -697,8 +733,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             local_player = self.match.local_player
             move = self.place_ring(ring_type, clicked_pos, local_player)
         elif selected_pos:
-            selected_cell = self.match.board.get_cell(*selected_pos)
-
             if selected_pos != clicked_pos:
                 move = self.move_cell_content(selected_pos, clicked_pos)
             else:
@@ -723,79 +757,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             self.mounted["send_thread"] = thread
         
         self.update_board_screen()
-    
-    def unselect_cell(self):
-        self.selected_cell_pos = None
-        self.clear_overlay()
-    
-    def clear_overlay(self):
-        for i in range(4):
-            for j in range(4):
-                tile = self.get_tile((i, j))
-                tile.clear_overlay()
-    
-    def mount_end_screen(self):
-        board = self.match.get_board()
-        end = board.check_end_condition()
-
-        local_turn = self.match.get_local_turn()
-
-        for cell in end:
-            pos = cell.get_pos()
-            tile = self.get_tile(pos)
-
-            if local_turn:
-                tile.victory_overlay()
-            else:
-                tile.defeat_overlay()
         
-        w, h = self.window_size
-
-        button_y = h/2 + c.BOARD_SIZE/2 + 40
-        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", lambda _: self.return_to_start())
-        self.mounted["return_button"] = button_id
-    
-    def return_to_start(self):
-        # self.restore_initial_state()
-        self.mount_start()
-
-    def evaluate_game_end(self) -> bool:
-        board = self.match.get_board()
-        end = board.check_end_condition()
-
-        if end:
-            local_turn = self.match.get_local_turn()
-
-            if local_turn:
-                self.update_status_message("Victory")
-            else:
-                self.update_status_message("Defeat")
-            
-            self.mount_end_screen()
-
-        else:
-            local_turn = self.match.switch_turn()
-
-            if local_turn:
-                self.update_status_message("Your Turn")
-            else:
-                self.update_status_message("Their Turn")
-        
-        return end
-
-    def highlight_possible_movements(self, board: Board, clicked_cell: Cell):
-        for cell in board.get_cells():
-            if cell is clicked_cell:
-                continue
-
-            if not clicked_cell.can_move_to(cell):
-                continue
-
-            pos = cell.get_pos()
-            tile = self.get_tile(pos)
-
-            tile.highlight_overlay()
-    
     def place_ring(self, ring_type: RingType, destination_pos: tuple[int, int], player: Player):
         board = self.match.get_board()
 
@@ -839,3 +801,5 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         
         self.update_board_screen()
 
+    def receive_withdrawal_notification(self):
+        self.mount_end_screen()
