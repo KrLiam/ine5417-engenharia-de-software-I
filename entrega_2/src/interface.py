@@ -9,15 +9,18 @@ from constants import Constants as c
 import dog
 from name import ADJECTIVES, NAMES
 from game import Board, Cell, GameMatch, Player, RingType
+
 class GameStatus(Enum):
     INIT = auto()
     FAIL_INIT = auto()
     START = auto()
     STARTING = auto()
     MATCH = auto()
+
 class MoveType(Enum):
     PLACE_RING = 0
     MOVE_CELL_CONTENT = 1
+
 class Movement:
     match_status: str | None
     type: MoveType
@@ -233,6 +236,12 @@ class RingStack:
     def set_amount(self, amount: int):
         self.amount = amount
         self.canvas.itemconfig(self.text_id, text=self.amount)
+    
+    def selected(self):
+        ...
+
+    def unselected(self):
+        ...
 
 
 @dataclass
@@ -331,13 +340,13 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         return f"{animal} {adj_pair[gender.value]}"
 
     def restore_initial_state(self):
-        self.match = None
+        self.clear_match()
         self.mounted = None
+
+        self.status_message = ""
 
         self.selected_ring = None
         self.selected_cell_pos = None
-
-        self.status_message = ""
 
 
     def loop(self):
@@ -417,7 +426,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             "dog_text_id": dog_text_id,
             "retry_button": retry_button,
         }
-    
     def mount_start_screen(self):
         self.canvas.delete("all")
         self.status = GameStatus.START
@@ -482,8 +490,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         start = self.dog_actor.start_match(2)
 
         if start.code == "2":
-            self.match = GameMatch.from_start_status(start)
-            self.mount_match_screen()
+            self.initialize_match(start)
             return
 
         self.dog_message = start.get_message()
@@ -492,7 +499,11 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     def receive_start(self, start_status: dog.StartStatus):
         self.restore_initial_state()
 
+        self.initialize_match(start_status)
+    
+    def initialize_match(self, start_status: dog.StartStatus):
         self.match = GameMatch.from_start_status(start_status)
+
         self.mount_match_screen()
 
     
@@ -592,7 +603,11 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             "player_name_text_id": player_name_text,
             "adversary_name_text_id": adversary_name_text,
             "tiles": tiles,
-            "stacks": (red_stack, blue_stack, green_stack)
+            "stacks": {
+                RingType.RED: red_stack,
+                RingType.GREEN: green_stack,
+                RingType.BLUE: blue_stack,
+            }
         }
 
     def update_match_screen(self):
@@ -641,22 +656,51 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     
     def get_tile(self, pos: tuple[int, int]) -> Tile:
         return self.mounted["tiles"][pos]
-    
+
+    def get_ring_stack(self, player: Player, ring_type: RingType) -> RingStack:
+        stacks = self.mounted["stacks"]
+
+        player_id = player.get_id()
+
+        if player_id == self.match.local_player:
+            return stacks[ring_type]
+        
+        return stacks[ring_type]
 
     def click_ring_stack(self, stack: RingStack):
         if not self.match.local_turn:
             self.update_status_message("Not Your Turn")
             return
         
-        if self.selected_ring == stack.ring_type:
-            self.update_status_message(f"Unselected ring")
-            self.selected_ring = None
-            return
+        self.select_ring(stack.ring_type)
+    
+    def select_ring(self, ring_type: RingType):
+        selected_ring = self.selected_ring
 
-        self.selected_ring = stack.ring_type
-        ring_name = self.selected_ring.value if self.selected_ring else "None"        
-        self.update_status_message(f"Selected {ring_name} ring")
+        if selected_ring:
+            self.unselect_ring()
         
+        if selected_ring != ring_type:
+            local_player = self.match.get_local_player()
+            clicked_stack = self.get_ring_stack(local_player, ring_type)
+            
+            count = clicked_stack.amount
+            
+            if count > 0:
+                self.selected_ring = ring_type
+                ring_name = self.selected_ring.value if self.selected_ring else "None"        
+                self.update_status_message(f"Selected {ring_name} ring")
+    
+    def unselect_ring(self):
+        selected_ring = self.selected_ring
+
+        selected_stack = self.get_ring_stack(self.match.local_player, selected_ring)
+        selected_stack.unselected()
+
+        self.selected_ring = None
+        self.update_status_message(f"Unselected ring")
+
+
     def click_tile(self, tile: Tile):
         if not self.match.local_turn:
             self.update_status_message("Not Your Turn")

@@ -20,6 +20,9 @@ class Player:
     def get_name(self) -> str:
         return self.name
 
+    def get_id(self) -> str:
+        return self.id
+
     def consume_ring(self, ring_type: RingType):
         if ring_type == RingType.RED:
             self.red_amount = max(self.red_amount - 1, 0)
