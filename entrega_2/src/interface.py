@@ -338,6 +338,9 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         adj_pair = choice(ADJECTIVES)
 
         return f"{animal} {adj_pair[gender.value]}"
+    
+    def clear_match(self):
+        self.match = None
 
     def restore_initial_state(self):
         self.clear_match()
