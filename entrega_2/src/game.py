@@ -30,6 +30,14 @@ class Player:
     def get_id(self) -> str:
         return self.id
 
+    def get_ring_amount(self, ring_type: RingType) -> int:
+        if ring_type == RingType.RED:
+            return self.red_amount
+        if ring_type == RingType.GREEN:
+            return self.green_amount
+        return self.blue_amount
+
+
     def consume_ring(self, ring_type: RingType):
         if ring_type == RingType.RED:
             self.red_amount = max(self.red_amount - 1, 0)
@@ -173,28 +181,27 @@ class Cell:
         self.rings.update(ring_set)
 
     def can_move_to(self, other_cell: "Cell") -> bool:
-        if other_cell.is_empty():
-            pos = self.pos
-            other_pos = other_cell.get_pos()
-                    
-            dx = other_pos[0] - pos[0]
-            dy = other_pos[1] - pos[1]
+        pos = self.pos
+        other_pos = other_cell.get_pos()
+                
+        dx = other_pos[0] - pos[0]
+        dy = other_pos[1] - pos[1]
 
-            valid_direction = dx == 0 or dy == 0 or abs(dx) == abs(dy)
+        valid_direction = dx == 0 or dy == 0 or abs(dx) == abs(dy)
 
-            if pos != other_pos and valid_direction:
-                distance = max(abs(dx), abs(dy))
+        if pos != other_pos and valid_direction:
+            distance = max(abs(dx), abs(dy))
 
-                for i in range(1, distance):
-                    x = pos[0] + i*sign(dx)
-                    y = pos[1] + i*sign(dy)
+            for i in range(1, distance + 1):
+                x = pos[0] + i*sign(dx)
+                y = pos[1] + i*sign(dy)
 
-                    cell = self.board.get_cell(x, y)
+                cell = self.board.get_cell(x, y)
 
-                    if not cell.is_empty():
-                        return False
+                if not cell.is_empty():
+                    return False
 
-                return True
+            return True
         
         return False
 
