@@ -231,6 +231,7 @@ class RingStack:
     
     def click(self, event: tk.Event):
         if self.on_click:
+
             self.on_click(self)
     
     def set_amount(self, amount: int):
@@ -338,6 +339,9 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         adj_pair = choice(ADJECTIVES)
 
         return f"{animal} {adj_pair[gender.value]}"
+    
+    def clear_match(self):
+        self.match = None
 
     def restore_initial_state(self):
         self.clear_match()
@@ -619,6 +623,15 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
             ring_set = cell.get_ring_set()
             tile.update_ring_set(ring_set)
+        
+        for player in (self.match.local_player, self.match.remote_player):
+            for ring_type in RingType:
+                stack = self.get_ring_stack(player, ring_type)
+                if not stack:
+                    continue
+
+                amount = player.get_ring_amount(ring_type)
+                stack.set_amount(amount)
 
 
     def mount_end_screen(self):
@@ -662,10 +675,10 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         player_id = player.get_id()
 
-        if player_id == self.match.local_player:
+        if player_id == self.match.local_player.get_id():
             return stacks[ring_type]
         
-        return stacks[ring_type]
+        return None
 
     def click_ring_stack(self, stack: RingStack):
         if not self.match.local_turn:

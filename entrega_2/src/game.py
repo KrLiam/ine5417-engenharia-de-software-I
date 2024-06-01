@@ -3,6 +3,13 @@ from enum import Enum
 from dog import StartStatus
 
 
+def sign(x: int | float) -> int:
+    if x > 0:
+        return 1
+    if x < 0:
+        return -1
+    return 0
+
 class RingType(Enum):
     RED = "red"
     BLUE = "blue"
@@ -22,6 +29,14 @@ class Player:
 
     def get_id(self) -> str:
         return self.id
+
+    def get_ring_amount(self, ring_type: RingType) -> int:
+        if ring_type == RingType.RED:
+            return self.red_amount
+        if ring_type == RingType.GREEN:
+            return self.green_amount
+        return self.blue_amount
+
 
     def consume_ring(self, ring_type: RingType):
         if ring_type == RingType.RED:
@@ -166,53 +181,25 @@ class Cell:
         self.rings.update(ring_set)
 
     def can_move_to(self, other_cell: "Cell") -> bool:
-        if not other_cell.is_empty():
-            return False
-
         pos = self.pos
         other_pos = other_cell.get_pos()
-
-        if pos == other_pos:
-            return False
-        
-        x1, y1 = pos
-        x2, y2 = other_pos
-
-        # horizontal
-        if x1 == x2:
-            for y in range(min(y1, y2) + 1, max(y1, y2)):
-                cell = self.board.get_cell(x1, y)
-
-                if not cell.is_empty():
-                    return False
-
-            return True
-        
-        # vertical
-        if y1 == y2:
-            for x in range(min(x1, x2) + 1, max(x1, x2)):
-                cell = self.board.get_cell(x, y1)
-
-                if not cell.is_empty():
-                    return False
                 
-            return True
-        
-        # diagonal
-        if abs(x1 - x2) == abs(y1 - y2):
-            dx = 1 if x2 > x1 else -1
-            dy = 1 if y2 > y1 else -1
+        dx = other_pos[0] - pos[0]
+        dy = other_pos[1] - pos[1]
 
-            x, y = x1 + dx, y1 + dy
+        valid_direction = dx == 0 or dy == 0 or abs(dx) == abs(dy)
 
-            while (x, y) != other_pos:
+        if pos != other_pos and valid_direction:
+            distance = max(abs(dx), abs(dy))
+
+            for i in range(1, distance + 1):
+                x = pos[0] + i*sign(dx)
+                y = pos[1] + i*sign(dy)
+
                 cell = self.board.get_cell(x, y)
 
                 if not cell.is_empty():
                     return False
-                
-                x += dx
-                y += dy
 
             return True
         
