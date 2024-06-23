@@ -1,14 +1,19 @@
-from dataclasses import dataclass, field
 from enum import Enum, auto
 from random import choice
 from threading import Thread
 import tkinter as tk
 import requests
-from typing import Any, Callable, ClassVar, Literal
-from constants import Constants as c
+from typing import Any
 import dog
+
+from constants import Constants as c
 from name import ADJECTIVES, NAMES
 from game import Board, Cell, GameMatch, Player, RingType
+from button import Button
+from movement import Movement, MoveType
+from ringstack import RingStack, RingType
+from tile import Tile
+
 
 class GameStatus(Enum):
     INIT = auto()
@@ -16,286 +21,6 @@ class GameStatus(Enum):
     START = auto()
     STARTING = auto()
     MATCH = auto()
-
-class MoveType(Enum):
-    PLACE_RING = 0
-    MOVE_CELL_CONTENT = 1
-
-class Movement:
-    match_status: str | None
-    type: MoveType
-    ring_type: RingType | None
-    origin: tuple[int, int] | None
-    destination: tuple[int, int]
-
-    def __init__(
-        self,
-        type: MoveType,
-        destination: tuple[int, int],
-        origin: tuple[int, int] | None = None,
-        ring_type: RingType | None = None,
-        match_status: str | None = None
-    ):
-        self.type = type
-        self.ring_type = ring_type
-        self.origin = origin
-        self.destination = destination
-        self.match_status = match_status
-
-    def get_type(self) -> MoveType:
-        return self.move_type
-
-    def get_ring_type(self) -> RingType:
-        return self.ring_type
-
-    def get_origin(self) -> tuple[int, int]:
-        return self.origin
-
-    def get_destination(self) -> tuple[int, int]:
-        return self.destination
-    
-    def get_match_status(self) -> str:
-        return self.match_status
-    
-    def set_match_status(self, match_status: str):
-        self.match_status = match_status
-    
-    def to_dict(self):
-        return {
-            "match_status": self.match_status,
-            "type": self.type.value,
-            "destination": list(self.destination),
-            "origin": list(self.origin) if self.origin else None,
-            "ring_type": self.ring_type.value if self.ring_type else None,
-        }
-
-    @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "Movement":
-        match_status = value.get("match_status")
-        type = value.get("type")
-        destination = value.get("destination")
-        origin = value.get("origin")
-        ring_type = value.get("ring_type")
-
-        return Movement(
-            MoveType(type),
-            destination,
-            origin,
-            RingType(ring_type) if ring_type else None,
-            match_status
-        )
-
-
-@dataclass
-class Tile:
-    canvas: tk.Canvas = field(repr=False)
-    board_origin: tuple[float, float]
-    pos: tuple[int, int]
-    canvas_pos: tuple[int, int] = field(init=False)
-
-    hover_rect_id: int | None = field(default=None, init=False)
-    rect_id: int | None = field(default=None, init=False)
-    red_id: int | None = field(default=None, init=False)
-    green_id: int | None = field(default=None, init=False)
-    blue_id: int | None = field(default=None, init=False)
-
-    on_click: Callable[["Tile"], None] | None = None
-
-    def __post_init__(self):
-        self.mount()
-    
-    def mount(self):
-        tile_size = c.BOARD_TILE_SIZE
-        board_outline_size = c.BOARD_OUTLINE_SIZE
-        tile_outline_size = c.BOARD_TILE_OUTLINE
-
-        board_x, board_y = self.board_origin
-        i, j = self.pos
-
-        # o -1 é porque a hitbox estava 1 pixel a direita do que devia, apenas pro x
-        x = board_x + board_outline_size + j*(tile_size + tile_outline_size) - 1
-        y = board_y + board_outline_size + i*(tile_size + tile_outline_size)
-        self.canvas_pos = (x, y)
-
-        self.hover_rect_id = self.canvas.create_image(
-            x, y, image=c.assets["transparent_tile_overlay"], anchor="nw"
-        )
-        self.rect_id = self.canvas.create_image(
-            x, y, image=c.assets["transparent_tile_overlay"], anchor="nw"
-        )
-        self.add_event_listeners(self.rect_id)
-
-    def add_event_listeners(self, id: int):
-        self.canvas.tag_bind(id, "<Enter>", self.enter)
-        self.canvas.tag_bind(id, "<Leave>", self.leave)
-        self.canvas.tag_bind(id, "<Button-1>", self.click)
-    
-    def unmount(self):
-        self.canvas.delete(self.rect_id)
-    
-    def enter(self, event: tk.Event):
-        self.canvas.itemconfig(self.hover_rect_id, image=c.assets["hover_tile_overlay"])
-
-    def leave(self, event: tk.Event):
-        self.canvas.itemconfig(self.hover_rect_id, image=c.assets["transparent_tile_overlay"])
-
-    def click(self, event: tk.Event):
-        if self.on_click:
-            self.on_click(self)
-    
-    def update_ring_set(self, ring_set: set[RingType]):
-        x, y = self.canvas_pos
-        x += c.BOARD_TILE_SIZE / 2
-        y += c.BOARD_TILE_SIZE / 2
-
-        if RingType.RED in ring_set:
-            if not self.red_id:
-                self.red_id = self.canvas.create_image(x, y, image=c.assets["red_ring"])
-                self.add_event_listeners(self.red_id)
-
-        else:
-            if self.red_id:
-                self.canvas.delete(self.red_id)
-            self.red_id = None
-
-        if RingType.GREEN in ring_set:
-            if not self.green_id:
-                self.green_id = self.canvas.create_image(x, y, image=c.assets["green_ring"])
-                self.add_event_listeners(self.green_id)
-        else:
-            if self.green_id:
-                self.canvas.delete(self.green_id)
-            self.green_id = None
-
-        if RingType.BLUE in ring_set:
-            if not self.blue_id:
-                self.blue_id = self.canvas.create_image(x, y, image=c.assets["blue_ring"])
-                self.add_event_listeners(self.blue_id)
-        else:
-            if self.blue_id:
-                self.canvas.delete(self.blue_id)
-            self.blue_id = None
-    
-    def highlight_overlay(self):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["highlight_tile_overlay"])
-
-    def victory_overlay(self):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["victory_tile_overlay"])
-
-    def defeat_overlay(self):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["defeat_tile_overlay"])
-
-    def clear_overlay(self):
-        self.canvas.itemconfig(self.rect_id, image=c.assets["transparent_tile_overlay"])
-
-
-@dataclass
-class RingStack:
-    canvas: tk.Canvas
-    pos: tuple[int, int]
-    ring_type: RingType
-    amount: int = 16
-    on_click: Callable[["RingStack"], None] | None = None
-
-    ring_id: int = field(init=False)
-    text_id: int = field(init=False)
-
-    asset_names: ClassVar[dict[RingType, str]] = {
-        RingType.RED: "red_ring",
-        RingType.BLUE: "blue_ring",
-        RingType.GREEN: "green_ring",
-    }
-
-    def __post_init__(self):
-        self.mount()
-    
-    def mount(self):
-        x,y = self.pos
-
-        asset_name = self.asset_names[self.ring_type]
-        asset = c.assets[asset_name]
-
-        self.ring_id = self.canvas.create_image(
-            x, y, image=asset
-        )
-        self.text_id = self.canvas.create_text(
-            x + 85,
-            y + 65,
-            justify="center",
-            fill="black",
-            font="LuckiestGuy 20 bold",
-            text=self.amount
-        )
-
-        self.canvas.tag_bind(self.ring_id, "<Button-1>", self.click)
-    
-    def click(self, event: tk.Event):
-        if self.on_click:
-
-            self.on_click(self)
-    
-    def set_amount(self, amount: int):
-        self.amount = amount
-        self.canvas.itemconfig(self.text_id, text=self.amount)
-    
-    def selected(self):
-        ...
-
-    def unselected(self):
-        ...
-
-
-@dataclass
-class Button:
-    canvas: tk.Canvas
-    center_pos: tuple[int, int]
-    size: tuple[int, int]
-    message: str
-
-    on_click: Callable[["Button"], None] | None = None
-
-    rect_id: int | None = field(default=None, init=False)
-    text_id: int | None = field(default=None, init=False)
-    hitbox_id: int | None = field(default=None, init=False)
-
-    def __post_init__(self):
-        self.mount()
-    
-    def mount(self):
-        button_w, button_h = self.size
-        x, y = self.center_pos
-
-        self.rect_id = self.canvas.create_rectangle(
-            x - button_w/2,
-            y - button_h/2,
-            x + button_w/2,
-            y + button_h/2,
-            fill="#7d91a1",
-            outline=""
-        )
-        self.text_id = self.canvas.create_text(
-            x,
-            y,
-            justify="center",
-            text=self.message,
-            fill="white",
-            font="LuckiestGuy 25 bold",
-        )
-        self.hitbox_id = self.canvas.create_rectangle(
-            x - button_w/2,
-            y - button_h/2,
-            x + button_w/2,
-            y + button_h/2,
-            fill="",
-            outline=""
-        )
-        self.canvas.tag_bind(self.hitbox_id, "<Enter>", lambda _: self.canvas.itemconfig(self.rect_id, fill="#e38539"))
-        self.canvas.tag_bind(self.hitbox_id, "<Leave>", lambda _: self.canvas.itemconfig(self.rect_id, fill="#7d91a1"))
-        self.canvas.tag_bind(self.hitbox_id, "<Button-1>", self.click)
-
-    def click(self, event: tk.Event):
-        if self.on_click:
-            self.on_click(self)
 
 class GamePlayerInterface(dog.DogPlayerInterface):
     window: tk.Tk
@@ -703,6 +428,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
                 self.selected_ring = ring_type
                 ring_name = self.selected_ring.value if self.selected_ring else "None"        
                 self.update_status_message(f"Selected {ring_name} ring")
+        
+        self.update_match_screen()
     
     def unselect_ring(self):
         selected_ring = self.selected_ring
