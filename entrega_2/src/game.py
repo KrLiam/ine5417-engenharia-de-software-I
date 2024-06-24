@@ -234,11 +234,15 @@ class GameMatch:
     def from_start_status(cls, status: StartStatus) -> "GameMatch":
         local, remote = status.get_players()
 
-        local_turn = local[2] == "1"
         local_player = Player(local[0], local[1])
         remote_player = Player(remote[0], remote[1])
+        local_turn = cls.evaluate_turn(local)
 
         return GameMatch(local_turn, local_player, remote_player)
+    
+    @classmethod
+    def evaluate_turn(cls, local: list[str]) -> bool:
+        return local[2] == "1"
 
     def switch_turn(self) -> bool:
         self.local_turn = not self.local_turn
