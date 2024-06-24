@@ -75,7 +75,6 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
         self.selected_ring = None
         self.selected_cell_pos = None
 
-
     def loop(self):
         self.window.after(c.DELAY, self.initialize)
 
@@ -107,7 +106,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
         w, h = self.window_size
 
-        dog_text_id = self.canvas.create_text(
+        status_text_id = self.canvas.create_text(
             w/2,
             h/2 - 60,
             justify="center",
@@ -117,9 +116,8 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
         )
 
         self.mounted = {
-            "dog_text_id": dog_text_id,
+            "status_text_id": status_text_id,
         }
-    
     
     def mount_start_screen(self):
         self.canvas.delete("all")
@@ -141,9 +139,9 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             center_pos=(w/2, h/2),
             size=(200, 75),
             message="Iniciar",
-            on_click=lambda _: self.mount_starting_match()
+            on_click=lambda _: self.start_match()
         )
-        dog_text_id = self.canvas.create_text(
+        status_text_id = self.canvas.create_text(
             w/2,
             h/2 + 70,
             justify="center",
@@ -154,40 +152,21 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
         self.mounted = {
             "welcome_text_id": welcome_text_id,
-            "dog_text_id": dog_text_id,
+            "status_text_id": status_text_id,
             "start_button": start_button,
         }    
 
-    def mount_starting_match(self):
-        self.canvas.delete("all")
-        self.status = GameStatus.STARTING
-
-        w, h = self.window_size
-
-        text_id = self.canvas.create_text(
-            w/2,
-            h/2,
-            justify="center",
-            text=f"Iniciando partida...",
-            fill="black",
-            font="LuckiestGuy 30 bold"
-        )
-
-        self.start_match()
-
-        self.mounted = {
-            "text_id": text_id,
-        }
-
     def start_match(self):
-        start = self.dog_actor.start_match(2)
+        start_status = self.dog_actor.start_match(2)
 
-        if start.code == "2":
-            self.initialize_match(start)
-            return
+        code = start_status.get_code()
 
-        self.dog_message = start.get_message()
-        self.mount_start_screen()
+        if code == "2":
+            self.initialize_match(start_status)
+        else:
+            start_message = start_status.get_message()
+            self.update_status_message(start_message)
+            self.mount_start_screen()
 
     def receive_start(self, start_status: dog.StartStatus):
         self.restore_initial_state()
