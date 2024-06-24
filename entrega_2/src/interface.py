@@ -52,7 +52,6 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
         self.player_name = self.choose_player_name()
 
         self.restore_initial_state()
-        self.mount_init() # mover isso pro loop posteriormente
 
     @property
     def window_size(self) -> tuple[int, int]:
@@ -69,7 +68,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
     def restore_initial_state(self):
         self.clear_match()
-        self.mounted = None
+        self.mounted = {}
 
         self.status_message = ""
 
@@ -78,52 +77,29 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
 
     def loop(self):
-        # a tela de init fica zoada se montada antes do tkinter executar o loop
-        # isso é problema pra "resolver" só depois :)
-        # def callback():
-        #     self.mount_init()
-        # self.window.after(c.DELAY, callback)
+        self.window.after(c.DELAY, self.initialize)
 
         self.window.mainloop()
-
-
-    def mount_init(self):
-        self.canvas.delete("all")
-        self.status = GameStatus.INIT
-
-        w, h = self.window_size
-
-        text_id = self.canvas.create_text(
-            w/2,
-            h/2,
-            justify="center",
-            text=f"Dog: Conectando...",
-            fill="black",
-            font="LuckiestGuy 30 bold"
-        )
-
-        self.mounted = {
-            "text_id": text_id,
-        }
-
-        self.initialize()
 
     def initialize(self):
         try:
             self.dog_actor = dog.DogActor()
-            message = self.dog_actor.initialize(self.player_name, self)
+            connection_result = self.dog_actor.initialize(self.player_name, self)
+            self.update_status_message(connection_result)
+
+            connected = self.process_connection_result(connection_result)
         except requests.exceptions.ConnectionError:
-            self.dog_message = "Falha de conexão"
-            self.mount_error_screen()
-            return
+            self.update_status_message("Falha de conexão")
 
-        self.dog_message = message
+            connected = False
 
-        if message == "Conectado a Dog Server":
+        if connected:
             self.mount_start_screen()
         else:
             self.mount_error_screen()
-
+    
+    def process_connection_result(self, connection_result: str):
+        return connection_result == "Conectado a Dog Server"
 
     def mount_error_screen(self):
         self.canvas.delete("all")
@@ -140,18 +116,11 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             font="LuckiestGuy 30 bold"
         )
 
-        retry_button = Button(
-            self.canvas,
-            center_pos=(w/2, h/2),
-            size=(400, 75),
-            message="Tentar Novamente",
-            on_click=lambda _: self.mount_init()
-        )
-
         self.mounted = {
             "dog_text_id": dog_text_id,
-            "retry_button": retry_button,
         }
+    
+    
     def mount_start_screen(self):
         self.canvas.delete("all")
         self.status = GameStatus.START
@@ -385,7 +354,9 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
 
     def update_status_message(self, message: str):
-        self.canvas.itemconfig(self.mounted["status_text_id"], text=message)
+        self.dog_message = message
+        if self.mounted.get("status_text_id"):
+            self.canvas.itemconfig(self.mounted["status_text_id"], text=message)
     
     def get_tile(self, pos: tuple[int, int]) -> Tile:
         return self.mounted["tiles"][pos]
