@@ -1,6 +1,5 @@
 from enum import Enum, auto
 from random import choice
-from threading import Thread
 import tkinter as tk
 import requests
 from typing import Any
@@ -22,7 +21,7 @@ class GameStatus(Enum):
     STARTING = auto()
     MATCH = auto()
 
-class GamePlayerInterface(dog.DogPlayerInterface):
+class   GamePlayerInterface(dog.DogPlayerInterface):
     window: tk.Tk
     canvas: tk.Canvas
     dog_actor: dog.DogActor
@@ -103,13 +102,11 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             font="LuckiestGuy 30 bold"
         )
 
-        thread = Thread(target=self.initialize)
-        thread.start()
-
         self.mounted = {
             "text_id": text_id,
-            "thread": thread
         }
+
+        self.initialize()
 
     def initialize(self):
         try:
@@ -207,12 +204,10 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             font="LuckiestGuy 30 bold"
         )
 
-        thread = Thread(target=self.start_match)
-        thread.start()
+        self.start_match()
 
         self.mounted = {
             "text_id": text_id,
-            "thread": thread
         }
 
     def start_match(self):
@@ -536,9 +531,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
             
             move_dict = move.to_dict()
             
-            thread = Thread(target=lambda: self.dog_actor.send_move(move_dict))
-            thread.start()
-            self.mounted["send_thread"] = thread
+            self.dog_actor.send_move(move_dict)
         
         self.update_match_screen()
         
