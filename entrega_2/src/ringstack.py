@@ -11,7 +11,7 @@ class RingStack:
     canvas: tk.Canvas
     pos: tuple[int, int]
     ring_type: RingType
-    amount: int = 16
+    count: int = 16
     on_click: Callable[["RingStack"], None] | None = None
 
     ring_id: int = field(init=False)

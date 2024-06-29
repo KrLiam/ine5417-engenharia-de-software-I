@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from dog import StartStatus
-from typing import Any
+from typing import Any, Union
 
 
 class MoveType(Enum):
@@ -11,7 +11,7 @@ class MoveType(Enum):
 class Movement:
     match_status: str | None
     type: MoveType
-    ring_type: "RingType" | None
+    ring_type: Union["RingType", None]
     origin: tuple[int, int] | None
     destination: tuple[int, int]
 
@@ -20,7 +20,7 @@ class Movement:
         type: MoveType,
         destination: tuple[int, int],
         origin: tuple[int, int] | None = None,
-        ring_type: "RingType" | None = None,
+        ring_type: Union["RingType", None] = None,
         match_status: str | None = None
     ):
         self.type = type
@@ -30,7 +30,7 @@ class Movement:
         self.match_status = match_status
 
     def get_move_type(self) -> MoveType:
-        return self.move_type
+        return self.type
 
     def get_ring_type(self) -> "RingType":
         return self.ring_type
@@ -328,7 +328,7 @@ class GameMatch:
 
         if move_type == MoveType.PLACE_RING:
             ring_type = move.get_ring_type()
-            pos = move.get_destination()
+            pos = move.get_destination_pos()
 
             self.place_ring(ring_type, pos, self.remote_player)
         elif move_type == MoveType.MOVE_CELL_CONTENT:
@@ -341,7 +341,7 @@ class GameMatch:
         end = self.board.check_end_condition()
 
         if not end:
-            self.match.switch_turn()
+            self.switch_turn()
         
         return end
     
