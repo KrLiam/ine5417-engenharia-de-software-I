@@ -7,9 +7,8 @@ import dog
 
 from constants import Constants as c
 from name import ADJECTIVES, NAMES
-from game import Board, Cell, GameMatch, Player, RingType
+from game import Board, Cell, GameMatch, Player, RingType, MoveType, Movement
 from button import Button
-from movement import Movement, MoveType
 from ringstack import RingStack, RingType
 from tile import Tile
 
@@ -299,8 +298,13 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
                     continue
 
                 amount = player.get_ring_amount(ring_type)
-                stack.set_amount(amount)
+                stack.set_count(amount)
 
+        local_turn = self.match.get_local_turn()
+        if local_turn:
+            self.update_status_message("Your Turn")
+        else:
+            self.update_status_message("Their Turn")
 
     def mount_end_screen(self):
         board = self.match.get_board()
@@ -352,7 +356,6 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
     def click_ring_stack(self, stack: RingStack):
         if not self.match.local_turn:
-            self.update_status_message("Not Your Turn")
             return
         
         self.select_ring(stack.ring_type)
@@ -367,7 +370,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             local_player = self.match.get_local_player()
             clicked_stack = self.get_ring_stack(local_player, ring_type)
             
-            count = clicked_stack.amount
+            count = clicked_stack.get_count()
             
             if count > 0:
                 self.selected_ring = ring_type
@@ -377,18 +380,12 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
         self.update_match_screen()
     
     def unselect_ring(self):
-        selected_ring = self.selected_ring
-
-        selected_stack = self.get_ring_stack(self.match.local_player, selected_ring)
-        selected_stack.unselected()
-
-        self.selected_ring = None
         self.update_status_message(f"Unselected ring")
+        self.selected_ring = None
 
 
     def click_tile(self, tile: Tile):
         if not self.match.local_turn:
-            self.update_status_message("Not Your Turn")
             return
 
         if self.selected_ring or self.selected_cell_pos:
@@ -402,55 +399,41 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
                 tile = self.get_tile((i, j))
                 tile.clear_overlay()
 
-    def highlight_possible_movements(self, board: Board, clicked_cell: Cell):
-        for cell in board.get_cells():
-            if cell is clicked_cell:
-                continue
+    def highlight_possible_movements(self, selected_cell: Cell):
+        cells = self.board.get_cells()
 
-            if not clicked_cell.can_move_to(cell):
-                continue
+        for cell in cells:
+            can_move = selected_cell.can_move_to(cell)
 
-            pos = cell.get_pos()
-            tile = self.get_tile(pos)
+            if can_move:
+                pos = cell.get_pos()
+                tile = self.get_tile(pos)
 
-            tile.highlight_overlay()
+                tile.highlight_overlay()
 
     def evaluate_game_end(self) -> bool:
-        board = self.match.get_board()
-        end = board.check_end_condition()
+        game_ended = self.match.evaluate_round()
 
-        if end:            
+        if game_ended:            
             self.mount_end_screen()
-        else:
-            local_turn = self.match.switch_turn()
-
-            if local_turn:
-                self.update_status_message("Your Turn")
-            else:
-                self.update_status_message("Their Turn")
         
-        return end
-
+        return game_ended
 
     def select_cell(self, clicked_pos: tuple[int, int]):
         board =  self.match.get_board()
 
         clicked_cell = board.get_cell(*clicked_pos)
 
-        if clicked_cell.is_empty():
-            return
+        empty = clicked_cell.is_empty()
+        
+        if not empty:
+            self.selected_cell_pos = clicked_pos
+            self.update_status_message(f"selected cell {self.selected_cell_pos}")
 
-        clicked_tile = self.get_tile(clicked_pos)
-
-        clicked_tile.highlight_overlay()
-        self.selected_cell_pos = clicked_pos
-        self.update_status_message(f"selected cell {self.selected_cell_pos}")
-
-        self.highlight_possible_movements(board, clicked_cell)
+            self.highlight_possible_movements(board, clicked_cell)
 
     def unselect_cell(self):
         self.selected_cell_pos = None
-        self.clear_overlay()
 
     def select_destination(self, clicked_pos: tuple[int, int]):
         ring_type = self.selected_ring
@@ -460,16 +443,15 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
         if ring_type:
             local_player = self.match.local_player
-            move = self.place_ring(ring_type, clicked_pos, local_player)
+            move = self.match.place_ring(ring_type, clicked_pos, local_player)
         elif selected_pos:
             if selected_pos != clicked_pos:
-                move = self.move_cell_content(selected_pos, clicked_pos)
+                move = self.match.move_cell_content(selected_pos, clicked_pos)
             else:
                 self.unselect_cell()
 
         self.selected_ring = None
         self.selected_cell_pos = None
-        self.clear_overlay()
 
         if move is not None:
             end = self.evaluate_game_end()
@@ -484,48 +466,14 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             self.dog_actor.send_move(move_dict)
         
         self.update_match_screen()
-        
-    def place_ring(self, ring_type: RingType, destination_pos: tuple[int, int], player: Player):
-        board = self.match.get_board()
-
-        inserted = board.insert_ring(destination_pos, ring_type)
-
-        if not inserted:
-            return None
-        
-        player.consume_ring(ring_type)
-
-        return Movement(
-            type=MoveType.PLACE_RING,
-            destination=destination_pos,
-            ring_type=ring_type
-        )
     
-    def move_cell_content(self, origin_pos: tuple[int, int], destination_pos: tuple[int, int]):
-        board = self.match.get_board()
-
-        moved = board.move(origin_pos, destination_pos)
-
-        if not moved:
-            return None
-    
-        return Movement(
-            type=MoveType.MOVE_CELL_CONTENT,
-            origin=origin_pos,
-            destination=destination_pos,
-        )
-
-    def receive_move(self, move_dict: dict[Any, Any]):
+    def receive_move(self, move_dict: dict[str, Any]):
         move = Movement.from_dict(move_dict)
 
-        if move.type == MoveType.PLACE_RING:
-            remote_player = self.match.remote_player
-            self.place_ring(move.ring_type, move.destination, remote_player)
-        elif move.type == MoveType.MOVE_CELL_CONTENT:
-            self.move_cell_content(move.origin, move.destination)
-        
+        self.match.receive_move(move)
+
         self.evaluate_game_end()
-        
+
         self.update_match_screen()
 
     def receive_withdrawal_notification(self):

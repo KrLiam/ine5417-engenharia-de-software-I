@@ -1,6 +1,76 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from dog import StartStatus
+from typing import Any
+
+
+class MoveType(Enum):
+    PLACE_RING = 0
+    MOVE_CELL_CONTENT = 1
+
+class Movement:
+    match_status: str | None
+    type: MoveType
+    ring_type: "RingType" | None
+    origin: tuple[int, int] | None
+    destination: tuple[int, int]
+
+    def __init__(
+        self,
+        type: MoveType,
+        destination: tuple[int, int],
+        origin: tuple[int, int] | None = None,
+        ring_type: "RingType" | None = None,
+        match_status: str | None = None
+    ):
+        self.type = type
+        self.ring_type = ring_type
+        self.origin = origin
+        self.destination = destination
+        self.match_status = match_status
+
+    def get_move_type(self) -> MoveType:
+        return self.move_type
+
+    def get_ring_type(self) -> "RingType":
+        return self.ring_type
+
+    def get_origin_pos(self) -> tuple[int, int]:
+        return self.origin
+
+    def get_destination_pos(self) -> tuple[int, int]:
+        return self.destination
+    
+    def get_match_status(self) -> str:
+        return self.match_status
+    
+    def set_match_status(self, match_status: str):
+        self.match_status = match_status
+    
+    def to_dict(self):
+        return {
+            "match_status": self.match_status,
+            "type": self.type.value,
+            "destination": list(self.destination),
+            "origin": list(self.origin) if self.origin else None,
+            "ring_type": self.ring_type.value if self.ring_type else None,
+        }
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "Movement":
+        match_status = value.get("match_status")
+        type = value.get("type")
+        destination = value.get("destination")
+        origin = value.get("origin")
+        ring_type = value.get("ring_type")
+
+        return Movement(
+            MoveType(type),
+            destination,
+            origin,
+            RingType(ring_type) if ring_type else None,
+            match_status
+        )
 
 
 def sign(x: int | float) -> int:
@@ -81,19 +151,6 @@ class Board:
             tuple(self.get_cell(3 - i, i) for i in range(4)),
         )
 
-    def insert_ring(self, pos: tuple[int, int], ring_type: RingType) -> bool:
-        if not (0 <= pos[0] <= 3 and 0 <= pos[1] <= 3):
-            return False
-        
-        cell = self.get_cell(*pos)
-
-        if cell.has_ring(ring_type):
-            return False
-
-        cell.insert(ring_type)
-
-        return True
-
     def move(self, origin_pos: tuple[int, int], destination_pos: tuple[int, int]) -> bool:
         origin_cell = self.get_cell(*origin_pos)
         destination_cell = self.get_cell(*destination_pos)
@@ -170,7 +227,7 @@ class Cell:
     def is_empty(self) -> bool:
         return not self.rings
 
-    def insert(self, ring_type: RingType):
+    def insert_ring(self, ring_type: RingType):
         self.rings.add(ring_type)
     
     def clear(self):
@@ -217,6 +274,16 @@ class GameMatch:
         self.local_player = local_player
         self.remote_player = remote_player
         self.board = Board()
+
+    @classmethod
+    def from_start_status(cls, status: StartStatus) -> "GameMatch":
+        local, remote = status.get_players()
+
+        local_player = Player(local[0], local[1])
+        remote_player = Player(remote[0], remote[1])
+        local_turn = cls.evaluate_turn(local)
+
+        return GameMatch(local_turn, local_player, remote_player)
     
     def get_board(self) -> Board:
         return self.board
@@ -230,15 +297,53 @@ class GameMatch:
     def get_remote_player(self) -> Player:
         return self.remote_player
 
-    @classmethod
-    def from_start_status(cls, status: StartStatus) -> "GameMatch":
-        local, remote = status.get_players()
+    def place_ring(self, ring_type: RingType, destination_pos: tuple[int, int], player: Player):
+        destination_cell = self.board.get_cell(*destination_pos)
 
-        local_player = Player(local[0], local[1])
-        remote_player = Player(remote[0], remote[1])
-        local_turn = cls.evaluate_turn(local)
+        present = destination_cell.has_ring(ring_type)
 
-        return GameMatch(local_turn, local_player, remote_player)
+        if not present:        
+            player.consume_ring(ring_type)
+
+            destination_cell.insert_ring(ring_type)
+
+            return Movement(
+                type=MoveType.PLACE_RING,
+                destination=destination_pos,
+                ring_type=ring_type
+            )
+    
+    def move_cell_content(self, origin_pos: tuple[int, int], destination_pos: tuple[int, int]):
+        moved = self.board.move(origin_pos, destination_pos)
+
+        if moved:
+            return Movement(
+                type=MoveType.MOVE_CELL_CONTENT,
+                origin=origin_pos,
+                destination=destination_pos,
+            )
+
+    def receive_move(self, move: Movement):
+        move_type = move.get_move_type()
+
+        if move_type == MoveType.PLACE_RING:
+            ring_type = move.get_ring_type()
+            pos = move.get_destination()
+
+            self.place_ring(ring_type, pos, self.remote_player)
+        elif move_type == MoveType.MOVE_CELL_CONTENT:
+            origin_pos = move.get_origin_pos()
+            destination = move.get_destination_pos()
+
+            self.move_cell_content(origin_pos, destination)
+    
+    def evaluate_round(self):        
+        end = self.board.check_end_condition()
+
+        if not end:
+            self.match.switch_turn()
+        
+        return end
     
     @classmethod
     def evaluate_turn(cls, local: list[str]) -> bool:
@@ -247,7 +352,4 @@ class GameMatch:
     def switch_turn(self) -> bool:
         self.local_turn = not self.local_turn
         return self.local_turn
-    
-    @classmethod
-    def evaluate_turn(cls, players: list[str], local_id: str):
-        ...
+

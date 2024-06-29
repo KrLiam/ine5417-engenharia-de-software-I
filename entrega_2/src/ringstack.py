@@ -41,7 +41,7 @@ class RingStack:
             justify="center",
             fill="black",
             font="LuckiestGuy 20 bold",
-            text=self.amount
+            text=self.count
         )
 
         self.canvas.tag_bind(self.ring_id, "<Button-1>", self.click)
@@ -51,12 +51,9 @@ class RingStack:
 
             self.on_click(self)
     
-    def set_amount(self, amount: int):
-        self.amount = amount
-        self.canvas.itemconfig(self.text_id, text=self.amount)
+    def get_count(self):
+        return self.count
     
-    def selected(self):
-        ...
-
-    def unselected(self):
-        ...
+    def set_count(self, amount: int):
+        self.count = amount
+        self.canvas.itemconfig(self.text_id, text=self.count)
