@@ -20,7 +20,7 @@ class GameStatus(Enum):
     STARTING = auto()
     MATCH = auto()
 
-class   GamePlayerInterface(dog.DogPlayerInterface):
+class GamePlayerInterface(dog.DogPlayerInterface):
     window: tk.Tk
     canvas: tk.Canvas
     dog_actor: dog.DogActor
@@ -28,7 +28,6 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
     mounted: dict[str, Any] | None
     status: GameStatus | None = None
     match: GameMatch | None = None
-    dog_message: str
 
     selected_ring: RingType | None
     selected_cell_pos: tuple[int, int] | None
@@ -109,7 +108,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             w/2,
             h/2 - 60,
             justify="center",
-            text=f"Dog: {self.dog_message}",
+            text=f"Dog: {self.status_message}",
             fill="black",
             font="LuckiestGuy 30 bold"
         )
@@ -144,7 +143,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             w/2,
             h/2 + 70,
             justify="center",
-            text=f"Dog: {self.dog_message}",
+            text=self.status_message,
             fill="black",
             font="LuckiestGuy 15 bold"
         )
@@ -233,6 +232,22 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             on_click=self.click_ring_stack,
         )
 
+        adv_red_stack = RingStack(
+            canvas=self.canvas,
+            pos=(adv_ring_container_cx, cy - 175),
+            ring_type=RingType.RED,
+        )
+        adv_blue_stack = RingStack(
+            canvas=self.canvas,
+            pos=(adv_ring_container_cx, cy - 14),
+            ring_type=RingType.BLUE,
+        )
+        adv_green_stack = RingStack(
+            canvas=self.canvas,
+            pos=(adv_ring_container_cx, cy + 147),
+            ring_type=RingType.GREEN,
+        )
+
         player_name_text = self.canvas.create_text(
             ring_container_cx,
             cy + ring_container_size_y/2 + 5,
@@ -264,6 +279,8 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             font="LuckiestGuy 18 bold"
         )
 
+        self.update_turn_marker()
+
         self.canvas.pack()
 
         self.mounted = {
@@ -278,6 +295,11 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
                 RingType.RED: red_stack,
                 RingType.GREEN: green_stack,
                 RingType.BLUE: blue_stack,
+            },
+            "adv_stacks": {
+                RingType.RED: adv_red_stack,
+                RingType.GREEN: adv_green_stack,
+                RingType.BLUE: adv_blue_stack,
             }
         }
 
@@ -299,12 +321,30 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
                 amount = player.get_ring_amount(ring_type)
                 stack.set_count(amount)
+        
+        self.update_turn_marker()
+        
+    def update_turn_marker(self):
+        self.canvas.delete("turn-marker")
+
+        w, h = self.window_size
+        cx, cy = w/2, h/2
+        ring_container_size_x, ring_container_size_y = c.RING_CONTAINER_SIZE
+        x_offset = c.BOARD_SIZE/2 + c.BOARD_CONTAINER_PADDING + ring_container_size_x/2
 
         local_turn = self.match.get_local_turn()
+
+        y = cy - ring_container_size_y / 2 - 75
+
         if local_turn:
-            self.update_status_message("Your Turn")
+            x = cx - x_offset
+            image = c.assets["local_turn"]
         else:
-            self.update_status_message("Their Turn")
+            x = cx + x_offset
+            image = c.assets["remote_turn"]
+        
+        self.canvas.create_image(x, y, image=image, tags=("turn-marker",))
+        self.canvas.pack()
 
     def mount_end_screen(self):
         board = self.match.get_board()
@@ -331,13 +371,17 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
         
         w, h = self.window_size
 
+        def return_button(_):
+            self.restore_initial_state()
+            self.mount_start_screen()
+
         button_y = h/2 + c.BOARD_SIZE/2 + 40
-        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", lambda _: self.mount_start_screen())
+        button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", return_button)
         self.mounted["return_button"] = button_id        
 
 
     def update_status_message(self, message: str):
-        self.dog_message = message
+        self.status_message = message
         if self.mounted.get("status_text_id"):
             self.canvas.itemconfig(self.mounted["status_text_id"], text=message)
     
@@ -345,14 +389,15 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
         return self.mounted["tiles"][pos]
 
     def get_ring_stack(self, player: Player, ring_type: RingType) -> RingStack:
-        stacks = self.mounted["stacks"]
 
         player_id = player.get_id()
 
         if player_id == self.match.local_player.get_id():
-            return stacks[ring_type]
-        
-        return None
+            stacks = self.mounted["stacks"]
+        else:
+            stacks = self.mounted["adv_stacks"]
+
+        return stacks[ring_type]
 
     def click_ring_stack(self, stack: RingStack):
         if not self.match.local_turn:
@@ -400,7 +445,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
                 tile.clear_overlay()
 
     def highlight_possible_movements(self, selected_cell: Cell):
-        cells = self.board.get_cells()
+        cells = self.match.get_board().get_cells()
 
         for cell in cells:
             can_move = selected_cell.can_move_to(cell)
@@ -430,7 +475,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
             self.selected_cell_pos = clicked_pos
             self.update_status_message(f"selected cell {self.selected_cell_pos}")
 
-            self.highlight_possible_movements(board, clicked_cell)
+            self.highlight_possible_movements(clicked_cell)
 
     def unselect_cell(self):
         self.selected_cell_pos = None
@@ -452,6 +497,7 @@ class   GamePlayerInterface(dog.DogPlayerInterface):
 
         self.selected_ring = None
         self.selected_cell_pos = None
+        self.clear_overlay()
 
         if move is not None:
             end = self.evaluate_game_end()

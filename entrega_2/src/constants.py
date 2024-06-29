@@ -32,8 +32,8 @@ class Constants:
     CONTAINER_COMPLETE_WITH_RINGS_PATH = "assets/container_complete_with_rings.png"
     CONTAINER_COMPLETE_WITH_RINGS_ADVERSARY_PATH = "assets/container_complete_with_rings_adversary.png"
     CONTAINER_COMPLETE_WITHOUT_RINGS_ADVERSARY_PATH = "assets/container_complete_without_rings_adversary.png"
-    SUA_VEZ_PATH = "assets/sua_vez.png"
-    VEZ_DO_ADVERSARIO_PATH = "assets/vez_do_adversario.png"
+    LOCAL_TURN_PATH = "assets/sua_vez.png"
+    REMOTE_TURN_PATH = "assets/vez_do_adversario.png"
 
     HOVER_COLOR = (255, 196, 64)
     DEFEAT_COLOR = (235, 64, 52)
@@ -86,4 +86,6 @@ class Constants:
             "blue_ring": tk.PhotoImage(file=cls.BLUE_RING_PATH),
             "red_ring": tk.PhotoImage(file=cls.RED_RING_PATH),
             "green_ring": tk.PhotoImage(file=cls.GREEN_RING_PATH),
+            "local_turn": tk.PhotoImage(file=cls.LOCAL_TURN_PATH),
+            "remote_turn": tk.PhotoImage(file=cls.REMOTE_TURN_PATH),
         }
