@@ -71,7 +71,7 @@ class Constants:
                 Image.new(
                     mode="RGBA",
                     size=(cls.BOARD_TILE_SIZE, cls.BOARD_TILE_SIZE),
-                    color=(*cls.HIGHLIGHT_COLOR, 128)
+                    color=(*cls.HIGHLIGHT_COLOR, 196)
                 )
             ),
             "transparent_tile_overlay": ImageTk.PhotoImage(

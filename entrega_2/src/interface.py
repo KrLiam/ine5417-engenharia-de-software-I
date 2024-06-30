@@ -31,6 +31,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
     selected_ring: RingType | None
     selected_cell_pos: tuple[int, int] | None
+    end_cells: list[Cell] | None = None
     status_message: str
 
     def __init__(self):
@@ -306,12 +307,21 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     def update_match_screen(self):
         board = self.match.get_board()
 
-        for cell in board.get_cells():
+        cells = board.get_cells()
+
+        for cell in cells:
             pos = cell.get_pos()
             tile = self.get_tile(pos)
 
             ring_set = cell.get_ring_set()
             tile.update_ring_set(ring_set)
+        
+        self.clear_overlay()
+
+        if self.selected_cell_pos:
+            self.highlight_possible_movements()
+        elif self.end_cells:
+            self.highlight_end_cells()
         
         for player in (self.match.local_player, self.match.remote_player):
             for ring_type in RingType:
@@ -323,52 +333,79 @@ class GamePlayerInterface(dog.DogPlayerInterface):
                 stack.set_count(amount)
         
         self.update_turn_marker()
-        
+    
     def update_turn_marker(self):
         self.canvas.delete("turn-marker")
 
-        w, h = self.window_size
-        cx, cy = w/2, h/2
-        ring_container_size_x, ring_container_size_y = c.RING_CONTAINER_SIZE
-        x_offset = c.BOARD_SIZE/2 + c.BOARD_CONTAINER_PADDING + ring_container_size_x/2
+        if not self.end_cells:
+            w, h = self.window_size
+            cx, cy = w/2, h/2
+            ring_container_size_x, ring_container_size_y = c.RING_CONTAINER_SIZE
+            x_offset = c.BOARD_SIZE/2 + c.BOARD_CONTAINER_PADDING + ring_container_size_x/2
+            y = cy - ring_container_size_y / 2 - 75
 
+            local_turn = self.match.get_local_turn()
+
+            if local_turn:
+                x = cx - x_offset
+                image = c.assets["local_turn"]
+            else:
+                x = cx + x_offset
+                image = c.assets["remote_turn"]
+            
+            self.canvas.create_image(x, y, image=image, tags=("turn-marker",))
+            self.canvas.pack()
+
+    def clear_overlay(self):
+        for i in range(4):
+            for j in range(4):
+                tile = self.get_tile((i, j))
+                tile.clear_overlay()
+
+    def highlight_possible_movements(self):
+        board = self.match.get_board()
+
+        selected_cell = board.get_cell(*self.selected_cell_pos)
+        cells = board.get_cells()
+
+        for cell in cells:
+            can_move = selected_cell.can_move_to(cell)
+
+            if can_move:
+                pos = cell.get_pos()
+                tile = self.get_tile(pos)
+
+                tile.highlight_overlay()
+
+    def highlight_end_cells(self):
         local_turn = self.match.get_local_turn()
 
-        y = cy - ring_container_size_y / 2 - 75
+        for cell in self.end_cells:
+            pos = cell.get_pos()
+            tile = self.get_tile(pos)
 
-        if local_turn:
-            x = cx - x_offset
-            image = c.assets["local_turn"]
-        else:
-            x = cx + x_offset
-            image = c.assets["remote_turn"]
-        
-        self.canvas.create_image(x, y, image=image, tags=("turn-marker",))
-        self.canvas.pack()
+            if local_turn:
+                tile.victory_overlay()
+            else:
+                tile.defeat_overlay()
 
     def mount_end_screen(self):
         board = self.match.get_board()
-        end = board.check_end_condition()
+        end_cells = board.check_end_condition()
 
-        if end:
+        self.canvas.delete("turn-marker")
+
+        if end_cells:
+            self.end_cells = end_cells
             local_turn = self.match.get_local_turn()
 
             if local_turn:
                 self.update_status_message("Victory")
             else:
                 self.update_status_message("Defeat")
-
-            for cell in end:
-                pos = cell.get_pos()
-                tile = self.get_tile(pos)
-
-                if local_turn:
-                    tile.victory_overlay()
-                else:
-                    tile.defeat_overlay()
         else:
             self.update_status_message("Adversary Escaped")
-        
+                
         w, h = self.window_size
 
         def return_button(_):
@@ -377,6 +414,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         button_y = h/2 + c.BOARD_SIZE/2 + 40
         button_id = Button(self.canvas, (w/2, button_y), (160, 60), "Return", return_button)
+
+        self.canvas.pack()
         self.mounted["return_button"] = button_id        
 
 
@@ -400,11 +439,27 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         return stacks[ring_type]
 
     def click_ring_stack(self, stack: RingStack):
+        # Pre-condição para executar o select ring
+
         if not self.match.local_turn:
+            return
+        
+        if self.selected_cell_pos:
             return
         
         self.select_ring(stack.ring_type)
     
+    def click_tile(self, tile: Tile):
+        # Pre condição para executar o select destination ou select cell
+        
+        if not self.match.local_turn:
+            return
+
+        if self.selected_ring or self.selected_cell_pos:
+            return self.select_destination(tile.pos)
+        
+        return self.select_cell(tile.pos)
+
     def select_ring(self, ring_type: RingType):
         selected_ring = self.selected_ring
 
@@ -427,35 +482,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     def unselect_ring(self):
         self.update_status_message(f"Unselected ring")
         self.selected_ring = None
-
-
-    def click_tile(self, tile: Tile):
-        if not self.match.local_turn:
-            return
-
-        if self.selected_ring or self.selected_cell_pos:
-            return self.select_destination(tile.pos)
-        
-        return self.select_cell(tile.pos)
     
-    def clear_overlay(self):
-        for i in range(4):
-            for j in range(4):
-                tile = self.get_tile((i, j))
-                tile.clear_overlay()
-
-    def highlight_possible_movements(self, selected_cell: Cell):
-        cells = self.match.get_board().get_cells()
-
-        for cell in cells:
-            can_move = selected_cell.can_move_to(cell)
-
-            if can_move:
-                pos = cell.get_pos()
-                tile = self.get_tile(pos)
-
-                tile.highlight_overlay()
-
     def evaluate_game_end(self) -> bool:
         game_ended = self.match.evaluate_round()
 
@@ -473,9 +500,8 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         
         if not empty:
             self.selected_cell_pos = clicked_pos
-            self.update_status_message(f"selected cell {self.selected_cell_pos}")
-
-            self.highlight_possible_movements(clicked_cell)
+        
+        self.update_match_screen()
 
     def unselect_cell(self):
         self.selected_cell_pos = None
@@ -497,7 +523,6 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         self.selected_ring = None
         self.selected_cell_pos = None
-        self.clear_overlay()
 
         if move is not None:
             end = self.evaluate_game_end()
