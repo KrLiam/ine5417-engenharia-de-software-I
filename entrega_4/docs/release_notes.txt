@@ -1,0 +1,12 @@
+# Instruções de como executar o jogo Conjunto
+-- Versão do Python: 3.11.1
+
+* Para instalar os pacotes necessários, execute o comando:
+```
+pip install -r requirements.txt
+```
+
+* Para executar o jogo, vá até o diretório "src" e execute o comando:
+```
+python main.py
+```
