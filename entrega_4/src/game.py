@@ -9,11 +9,11 @@ class MoveType(Enum):
     MOVE_CELL_CONTENT = 1
 
 class Movement:
-    match_status: str | None
-    type: MoveType
-    ring_type: Union["RingType", None]
-    origin: tuple[int, int] | None
-    destination: tuple[int, int]
+    __match_status: str | None
+    __type: MoveType
+    __ring_type: Union["RingType", None]
+    __origin: tuple[int, int] | None
+    __destination: tuple[int, int]
 
     def __init__(
         self,
@@ -23,37 +23,37 @@ class Movement:
         ring_type: Union["RingType", None] = None,
         match_status: str | None = None
     ):
-        self.type = type
-        self.ring_type = ring_type
-        self.origin = origin
-        self.destination = destination
-        self.match_status = match_status
+        self.__type = type
+        self.__ring_type = ring_type
+        self.__origin = origin
+        self.__destination = destination
+        self.__match_status = match_status
 
     def get_move_type(self) -> MoveType:
-        return self.type
+        return self.__type
 
     def get_ring_type(self) -> "RingType":
-        return self.ring_type
+        return self.__ring_type
 
     def get_origin_pos(self) -> tuple[int, int]:
-        return self.origin
+        return self.__origin
 
     def get_destination_pos(self) -> tuple[int, int]:
-        return self.destination
+        return self.__destination
     
     def get_match_status(self) -> str:
-        return self.match_status
+        return self.__match_status
     
     def set_match_status(self, match_status: str):
-        self.match_status = match_status
+        self.__match_status = match_status
     
     def to_dict(self):
         return {
-            "match_status": self.match_status,
-            "type": self.type.value,
-            "destination": list(self.destination),
-            "origin": list(self.origin) if self.origin else None,
-            "ring_type": self.ring_type.value if self.ring_type else None,
+            "match_status": self.__match_status,
+            "type": self.__type.value,
+            "destination": list(self.__destination),
+            "origin": list(self.__origin) if self.__origin else None,
+            "ring_type": self.__ring_type.value if self.__ring_type else None,
         }
 
     @classmethod
@@ -88,50 +88,50 @@ class RingType(Enum):
 
 @dataclass
 class Player:
-    name: str
-    id: str
-    red_amount: int = field(init=False, default=16)
-    green_amount: int = field(init=False, default=16)
-    blue_amount: int = field(init=False, default=16)
+    __name: str
+    __id: str
+    __red_amount: int = field(init=False, default=16)
+    __green_amount: int = field(init=False, default=16)
+    __blue_amount: int = field(init=False, default=16)
 
     def get_name(self) -> str:
-        return self.name
+        return self.__name
 
     def get_id(self) -> str:
-        return self.id
+        return self.__id
 
     def get_ring_amount(self, ring_type: RingType) -> int:
         if ring_type == RingType.RED:
-            return self.red_amount
+            return self.__red_amount
         if ring_type == RingType.GREEN:
-            return self.green_amount
-        return self.blue_amount
+            return self.__green_amount
+        return self.__blue_amount
 
 
     def consume_ring(self, ring_type: RingType):
         if ring_type == RingType.RED:
-            self.red_amount = max(self.red_amount - 1, 0)
+            self.__red_amount = max(self.__red_amount - 1, 0)
         elif ring_type == RingType.GREEN:
-            self.green_amount = max(self.green_amount - 1, 0)
+            self.__green_amount = max(self.__green_amount - 1, 0)
         else:
-            self.blue_amount = max(self.blue_amount - 1, 0)
+            self.__blue_amount = max(self.__blue_amount - 1, 0)
 
 
 class Board:
-    cells: list["Cell"]
+    __cells: list["Cell"]
 
     def __init__(self):
-        self.cells = []
+        self.__cells = []
 
         for i in range(4):
             for j in range(4):
-                self.cells.append(Cell(self, (i, j)))
+                self.__cells.append(Cell(self, (i, j)))
     
     def get_cells(self) -> tuple["Cell", ...]:
-        return tuple(self.cells)
+        return tuple(self.__cells)
     
     def get_cell(self, i: int, j: int) -> "Cell":
-        return self.cells[i*4 + j]
+        return self.__cells[i*4 + j]
 
     def get_rows(self):
         return tuple(
@@ -203,42 +203,42 @@ class Board:
 
 @dataclass(init=False)
 class Cell:
-    board: Board = field(repr=False)
-    pos: tuple[int, int]
-    rings: set[RingType]
+    __board: Board = field(repr=False)
+    __pos: tuple[int, int]
+    __rings: set[RingType]
 
     def __init__(self, board: Board, pos: tuple[int, int]):
-        self.board = board
-        self.pos = pos
-        self.rings = set()
+        self.__board = board
+        self.__pos = pos
+        self.__rings = set()
     
     def __eq__(self, other: "Cell") -> bool:
-        return self.rings == other.rings
+        return self.__rings == other.get_ring_set()
     
     def get_pos(self) -> tuple[int, int]:
-        return self.pos
+        return self.__pos
 
     def get_ring_set(self) -> set[RingType]:
-        return set(self.rings)
+        return set(self.__rings)
     
     def has_ring(self, ring_type: RingType) -> bool:
-        return ring_type in self.rings
+        return ring_type in self.__rings
 
     def is_empty(self) -> bool:
-        return not self.rings
+        return not self.__rings
 
     def insert_ring(self, ring_type: RingType):
-        self.rings.add(ring_type)
+        self.__rings.add(ring_type)
     
     def clear(self):
-        self.rings.clear()
+        self.__rings.clear()
     
     def set_ring_set(self, ring_set: set[RingType]):
-        self.rings.clear()
-        self.rings.update(ring_set)
+        self.__rings.clear()
+        self.__rings.update(ring_set)
 
     def can_move_to(self, other_cell: "Cell") -> bool:
-        pos = self.pos
+        pos = self.__pos
         other_pos = other_cell.get_pos()
                 
         dx = other_pos[0] - pos[0]
@@ -253,7 +253,7 @@ class Cell:
                 x = pos[0] + i*sign(dx)
                 y = pos[1] + i*sign(dy)
 
-                cell = self.board.get_cell(x, y)
+                cell = self.__board.get_cell(x, y)
 
                 if not cell.is_empty():
                     return False
@@ -264,16 +264,16 @@ class Cell:
 
 
 class GameMatch:
-    local_turn: bool
-    local_player: Player
-    remote_player: Player
-    board: Board
+    __local_turn: bool
+    __local_player: Player
+    __remote_player: Player
+    __board: Board
 
     def __init__(self, local_turn: bool, local_player: Player, remote_player: Player):
-        self.local_turn = local_turn
-        self.local_player = local_player
-        self.remote_player = remote_player
-        self.board = Board()
+        self.__local_turn = local_turn
+        self.__local_player = local_player
+        self.__remote_player = remote_player
+        self.__board = Board()
 
     @classmethod
     def from_start_status(cls, status: StartStatus) -> "GameMatch":
@@ -286,19 +286,19 @@ class GameMatch:
         return GameMatch(local_turn, local_player, remote_player)
     
     def get_board(self) -> Board:
-        return self.board
+        return self.__board
     
     def get_local_turn(self) -> bool:
-        return self.local_turn
+        return self.__local_turn
     
     def get_local_player(self) -> Player:
-        return self.local_player
+        return self.__local_player
 
     def get_remote_player(self) -> Player:
-        return self.remote_player
+        return self.__remote_player
 
     def place_ring(self, ring_type: RingType, destination_pos: tuple[int, int], player: Player):
-        destination_cell = self.board.get_cell(*destination_pos)
+        destination_cell = self.__board.get_cell(*destination_pos)
 
         present = destination_cell.has_ring(ring_type)
 
@@ -314,7 +314,7 @@ class GameMatch:
             )
     
     def move_cell_content(self, origin_pos: tuple[int, int], destination_pos: tuple[int, int]):
-        moved = self.board.move(origin_pos, destination_pos)
+        moved = self.__board.move(origin_pos, destination_pos)
 
         if moved:
             return Movement(
@@ -330,7 +330,7 @@ class GameMatch:
             ring_type = move.get_ring_type()
             pos = move.get_destination_pos()
 
-            self.place_ring(ring_type, pos, self.remote_player)
+            self.place_ring(ring_type, pos, self.__remote_player)
         elif move_type == MoveType.MOVE_CELL_CONTENT:
             origin_pos = move.get_origin_pos()
             destination = move.get_destination_pos()
@@ -338,7 +338,7 @@ class GameMatch:
             self.move_cell_content(origin_pos, destination)
     
     def evaluate_round(self):        
-        end = self.board.check_end_condition()
+        end = self.__board.check_end_condition()
 
         if not end:
             self.switch_turn()
@@ -350,6 +350,6 @@ class GameMatch:
         return local[2] == "1"
 
     def switch_turn(self) -> bool:
-        self.local_turn = not self.local_turn
-        return self.local_turn
+        self.__local_turn = not self.__local_turn
+        return self.__local_turn
 

@@ -56,6 +56,9 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     def window_size(self) -> tuple[int, int]:
         return (self.__window.winfo_width(), self.__window.winfo_height())    
 
+    def get_status(self):
+        return self.__status
+
     def choose_player_name(self):
         gender, animal = choice(NAMES)
         adj_pair = choice(ADJECTIVES)
@@ -323,7 +326,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         elif self.__end_cells:
             self.highlight_end_cells()
         
-        for player in (self.__match.local_player, self.__match.remote_player):
+        for player in (self.__match.get_local_player(), self.__match.get_remote_player()):
             for ring_type in RingType:
                 stack = self.get_ring_stack(player, ring_type)
                 if not stack:
@@ -431,7 +434,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
 
         player_id = player.get_id()
 
-        if player_id == self.__match.local_player.get_id():
+        if player_id == self.__match.get_local_player().get_id():
             stacks = self.__mounted["stacks"]
         else:
             stacks = self.__mounted["adv_stacks"]
@@ -441,24 +444,24 @@ class GamePlayerInterface(dog.DogPlayerInterface):
     def click_ring_stack(self, stack: RingStack):
         # Pre-condição para executar o select ring
 
-        if not self.__match.local_turn:
+        if not self.__match.get_local_turn():
             return
         
         if self.__selected_cell_pos:
             return
         
-        self.select_ring(stack.ring_type)
+        self.select_ring(stack.get_ring_type())
     
     def click_tile(self, tile: Tile):
         # Pre condição para executar o select destination ou select cell
         
-        if not self.__match.local_turn:
+        if not self.__match.get_local_turn():
             return
 
         if self.__selected_ring or self.__selected_cell_pos:
-            return self.select_destination(tile.pos)
+            return self.select_destination(tile.get_pos())
         
-        return self.select_cell(tile.pos)
+        return self.select_cell(tile.get_pos())
 
     def select_ring(self, ring_type: RingType):
         selected_ring = self.__selected_ring
@@ -513,7 +516,7 @@ class GamePlayerInterface(dog.DogPlayerInterface):
         move = None
 
         if ring_type:
-            local_player = self.__match.local_player
+            local_player = self.__match.get_local_player()
             move = self.__match.place_ring(ring_type, clicked_pos, local_player)
         elif selected_pos:
             if selected_pos != clicked_pos:
