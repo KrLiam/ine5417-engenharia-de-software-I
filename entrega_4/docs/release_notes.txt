@@ -1,7 +1,10 @@
 # Instruções de como executar o jogo Conjunto
 -- Versão do Python: 3.11.1
 
-Primeiramente, crie um ambiente virtual na subpasta `venv`:
+Primeiramente, abra um terminal no diretório principal do projeto (o diretório
+contendo as pastas `diagramas`, `docs`, `src` etc.
+
+Crie um ambiente virtual na subpasta `venv`:
 
 ```sh
 python -m venv venv
