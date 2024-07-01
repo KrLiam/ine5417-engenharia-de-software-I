@@ -1,12 +1,27 @@
 # Instruções de como executar o jogo Conjunto
 -- Versão do Python: 3.11.1
 
-* Para instalar os pacotes necessários, execute o comando:
+Primeiramente, crie um ambiente virtual na subpasta `venv`:
+
+```sh
+python -m venv venv
+```
+
+Em seguida, entre no venv:
+
+```sh
+source venv/bin/activate
+```
+
+Instale os pacotes necessários:
+
 ```
 pip install -r requirements.txt
 ```
 
-* Para executar o jogo, vá até o diretório "src" e execute o comando:
-```
-python main.py
+Para executar o jogo, entre no diretório `src` e rode o script:
+
+```sh
+cd src
+python3 main.py
 ```
