@@ -7,7 +7,7 @@ Primeiramente, crie um ambiente virtual na subpasta `venv`:
 python -m venv venv
 ```
 
-Em seguida, entre no venv:
+Em seguida, entre no venv. No Linux, isso pode ser feito da seguinte forma:
 
 ```sh
 source venv/bin/activate
